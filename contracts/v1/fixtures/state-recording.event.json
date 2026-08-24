@@ -1,0 +1,14 @@
+{
+  "protocol_version": "1.0",
+  "message_id": "a8142148-2b11-43fd-80e6-ea44bbfb5a63",
+  "kind": "event",
+  "name": "state.changed",
+  "sent_at": "2026-08-23T21:31:00Z",
+  "instance_id": "e68d1332-90e0-4378-a887-7f4ef69c81a2",
+  "sequence": 1,
+  "payload": {
+    "previous": "idle",
+    "current": "recording",
+    "session_id": "1ecda715-bd79-43b4-b187-4cf859b20001"
+  }
+}

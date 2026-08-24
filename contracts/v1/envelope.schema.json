@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speakiput.local/contracts/v1/envelope.schema.json",
+  "title": "Speakiput protocol envelope v1",
+  "type": "object",
+  "required": [
+    "protocol_version",
+    "message_id",
+    "kind",
+    "name",
+    "sent_at",
+    "payload"
+  ],
+  "properties": {
+    "protocol_version": { "const": "1.0" },
+    "message_id": { "type": "string", "format": "uuid" },
+    "kind": { "enum": ["request", "response", "event"] },
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+    "sent_at": { "type": "string", "format": "date-time" },
+    "correlation_id": { "type": "string", "format": "uuid" },
+    "instance_id": { "type": "string", "format": "uuid" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "payload": { "type": "object" },
+    "error": {
+      "type": "object",
+      "required": ["code", "message", "retryable", "details"],
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_argument",
+            "invalid_state",
+            "not_found",
+            "conflict",
+            "unavailable",
+            "permission_denied",
+            "timeout",
+            "unsupported",
+            "protocol_mismatch",
+            "internal"
+          ]
+        },
+        "message": { "type": "string" },
+        "retryable": { "type": "boolean" },
+        "details": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "response" } } },
+      "then": { "required": ["correlation_id", "instance_id"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "event" } } },
+      "then": { "required": ["instance_id", "sequence"] }
+    },
+    {
+      "if": { "required": ["error"] },
+      "then": { "properties": { "payload": { "maxProperties": 0 } } }
+    }
+  ],
+  "additionalProperties": true
+}

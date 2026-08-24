@@ -1,0 +1,30 @@
+[package]
+name = "speakiput"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+slint.workspace = true
+speakiput-client = { path = "../../crates/speakiput-client" }
+speakiput-contract = { path = "../../crates/speakiput-contract" }
+speakiput-platform-linux-gui = { path = "../../crates/speakiput-platform-linux-gui" }
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[build-dependencies]
+slint-build.workspace = true
+
+[dev-dependencies]
+image = { version = "0.25.9", default-features = false, features = ["png"] }
+i-slint-backend-testing = { version = "1.17.1", features = ["renderer-software"] }
+speakiput-testing = { path = "../../crates/speakiput-testing" }
+
+[lints]
+workspace = true

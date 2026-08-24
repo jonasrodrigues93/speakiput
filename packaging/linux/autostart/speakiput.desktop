@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=speakiput tray
+Comment=Keep speakiput dictation controls available
+Exec=speakiput --background
+Icon=io.github.jonas.speakiput
+Terminal=false
+OnlyShowIn=GNOME;KDE;XFCE;MATE;Cinnamon;Unity;
+X-GNOME-Autostart-enabled=true

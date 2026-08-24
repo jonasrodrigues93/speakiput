@@ -1,0 +1,513 @@
+import { ComboBox, LineEdit, ScrollView, SpinBox } from "std-widgets.slint";
+
+export enum UiState { disconnected, starting, idle, recording, transcribing, post-processing, injecting, error }
+export enum SettingsPage { general, recording, audio, transcription, post-processing, overlay, shortcut, output, history, diagnostics }
+
+component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected;
+    callback activated();
+    height: 36px;
+    border-radius: 7px;
+    background: root.selected ? #28322d : touch.has-hover ? #202522 : transparent;
+    Text {
+        text: root.label;
+        color: root.selected ? #f2f5f1 : #aab1ac;
+        font-size: 13px;
+        font-weight: root.selected ? 600 : 450;
+        vertical-alignment: center;
+        x: 12px;
+    }
+    touch := TouchArea { clicked => { root.activated(); } }
+}
+
+component SectionTitle inherits VerticalLayout {
+    in property <string> title;
+    in property <string> description;
+    spacing: 5px;
+    height: 52px;
+    vertical-stretch: 0;
+    Text { text: root.title; color: #f2f5f1; font-size: 22px; font-weight: 650; }
+    Text { text: root.description; color: #9da59f; font-size: 12px; wrap: word-wrap; }
+}
+
+component FieldLabel inherits Text {
+    in property <string> label;
+    text: root.label;
+    color: #c7cdc8;
+    font-size: 12px;
+    font-weight: 550;
+    height: 18px;
+    vertical-stretch: 0;
+    vertical-alignment: center;
+}
+
+component SettingRow inherits Rectangle {
+    in property <string> title;
+    in property <string> help;
+    height: 64px;
+    border-radius: 9px;
+    border-width: 1px;
+    border-color: #303632;
+    background: #1c211e;
+    VerticalLayout {
+        x: 14px; width: parent.width - 234px;
+        alignment: center;
+        spacing: 3px;
+        Text { text: root.title; color: #edf1ed; font-size: 13px; font-weight: 550; }
+        Text { text: root.help; color: #929a94; font-size: 11px; wrap: word-wrap; }
+    }
+}
+
+component Toggle inherits Rectangle {
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    width: 46px;
+    height: 26px;
+    border-radius: 13px;
+    border-width: 1px;
+    border-color: !root.enabled ? #3a403c : root.checked ? #8dad94 : #515853;
+    background: !root.enabled ? #292e2b : root.checked ? #68836f : #343a36;
+    Rectangle {
+        x: root.checked ? parent.width - self.width - 4px : 4px;
+        y: 4px;
+        width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        background: !root.enabled ? #686f6a : #f5f7f4;
+        animate x { duration: 120ms; easing: ease-out; }
+    }
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.checked = !root.checked; }
+    }
+}
+
+component AppButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary: false;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 36px;
+    min-width: 96px;
+    preferred-width: button-label.preferred-width + 30px;
+    border-radius: 7px;
+    border-width: 1px;
+    border-color: !root.enabled ? #343936 : root.primary ? #91ad97 : #4a514c;
+    background: !root.enabled ? #252a27 : touch.pressed ? #3b4b40 : touch.has-hover ? (root.primary ? #78947e : #303733) : root.primary ? #68836f : #252b28;
+    button-label := Text {
+        text: root.text;
+        color: root.enabled ? #f5f7f4 : #727a74;
+        font-size: 12px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+}
+
+component ShortcutRecorder inherits Rectangle {
+    in-out property <string> shortcut;
+    in property <bool> enabled: true;
+    property <bool> recording: false;
+    height: 38px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: root.recording ? #8dad94 : #454c47;
+    background: root.enabled ? #202522 : #252a27;
+
+    Text {
+        x: 12px;
+        width: parent.width - 24px;
+        text: root.recording ? "Press a key combination…" : root.shortcut;
+        color: root.enabled ? #edf1ed : #737a75;
+        vertical-alignment: center;
+    }
+    key-capture := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (!root.recording) { reject }
+            else if (event.text == Key.Escape) {
+                root.recording = false;
+                accept
+            } else if (event.text == Key.Shift || event.text == Key.ShiftR
+                    || event.text == Key.Control || event.text == Key.ControlR
+                    || event.text == Key.Alt || event.text == Key.AltGr
+                    || event.text == Key.Meta || event.text == Key.MetaR) {
+                accept
+            } else if (event.modifiers.control || event.modifiers.alt || event.modifiers.shift || event.modifiers.meta) {
+                root.shortcut = (event.modifiers.meta ? "Super+" : "")
+                    + (event.modifiers.control ? "Control+" : "")
+                    + (event.modifiers.alt ? "Alt+" : "")
+                    + (event.modifiers.shift ? "Shift+" : "")
+                    + (event.text == Key.Space ? "Space"
+                        : event.text == Key.F1 ? "F1"
+                        : event.text == Key.F2 ? "F2"
+                        : event.text == Key.F3 ? "F3"
+                        : event.text == Key.F4 ? "F4"
+                        : event.text == Key.F5 ? "F5"
+                        : event.text == Key.F6 ? "F6"
+                        : event.text == Key.F7 ? "F7"
+                        : event.text == Key.F8 ? "F8"
+                        : event.text == Key.F9 ? "F9"
+                        : event.text == Key.F10 ? "F10"
+                        : event.text == Key.F11 ? "F11"
+                        : event.text == Key.F12 ? "F12"
+                        : event.text);
+                root.recording = false;
+                accept
+            } else { accept }
+        }
+    }
+    TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.recording = true;
+            key-capture.focus();
+        }
+    }
+}
+
+export component SettingsWindow inherits Window {
+    title: "speakiput — Settings";
+    preferred-width: 940px;
+    preferred-height: 680px;
+    min-width: 780px;
+    min-height: 560px;
+    background: #151916;
+    default-font-family: "Inter, Noto Sans, sans-serif";
+    default-font-size: 13px;
+
+    in-out property <UiState> backend-state: UiState.disconnected;
+    in-out property <string> status-text: "Connecting…";
+    in-out property <SettingsPage> active-page: SettingsPage.general;
+    in-out property <bool> saving: false;
+    in-out property <string> save-error: "";
+    in-out property <string> save-error-field: "";
+    in property <bool> settings-stale: false;
+
+    in-out property <string> language: "pt";
+    in-out property <int> auto-stop-ms: 1000;
+    in-out property <bool> history-enabled: true;
+    in-out property <string> input-device: "default";
+    in property <[string]> input-device-options: ["default"];
+    in-out property <int> phrase-silence-ms: 700;
+    in-out property <string> transcription-backend: "local-whisper";
+    in property <[string]> transcription-backend-options: ["local-whisper"];
+    in-out property <string> transcription-model: "large-v3-turbo-q5_0";
+    in-out property <string> transcription-model-path: "";
+    in-out property <string> transcription-prompt: "";
+    in-out property <string> transcription-vocabulary: "";
+    in-out property <bool> remove-filler-words: false;
+    in-out property <string> filler-words: "";
+    in-out property <bool> post-processing-enabled: true;
+    in-out property <string> post-processing-backend: "openai-compatible";
+    in property <[string]> post-processing-backend-options: ["openai-compatible"];
+    in-out property <string> post-processing-model: "gemma-4-26b-no-reasoning";
+    in-out property <string> post-processing-endpoint: "http://127.0.0.1:1234/v1/chat/completions";
+    in-out property <string> post-processing-credential-id: "";
+    in-out property <string> post-processing-credential-secret: "";
+    in-out property <string> post-processing-instruction: "Correct punctuation without adding content.";
+    in-out property <bool> overlay-enabled: true;
+    in-out property <bool> partial-transcript-enabled: true;
+    in-out property <string> overlay-size: "Medium";
+    in-out property <string> overlay-position: "Bottom center";
+    in-out property <string> shortcut: "Super+Shift+Space";
+    in-out property <string> output-mode: "Keyboard";
+    in-out property <int> key-delay-ms: 2;
+    in property <bool> shortcut-supported: true;
+    in property <bool> keyboard-insertion-supported: true;
+    in property <bool> credential-store-supported: true;
+    in property <bool> overlay-supported: true;
+    in property <[string]> history-items: [];
+    in property <[string]> diagnostic-items: [];
+    in property <string> diagnostic-log-path: "";
+
+    callback record-requested();
+    callback save-requested();
+    callback reload-settings-requested();
+    callback history-clear-requested();
+    callback diagnostics-refresh-requested();
+
+    HorizontalLayout {
+        spacing: 0px;
+        Rectangle {
+            width: 220px;
+            background: #101311;
+            border-width: 0px;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 5px;
+                HorizontalLayout {
+                    height: 50px;
+                    spacing: 10px;
+                    Rectangle {
+                        width: 32px; height: 32px; border-radius: 10px; background: #78947e;
+                        HorizontalLayout {
+                            padding-left: 7px; padding-right: 7px; spacing: 2px; alignment: center;
+                            for height-factor[index] in [0.35, 0.7, 1.0, 0.6, 0.35]: Rectangle {
+                                width: 2px; height: 20px * height-factor; border-radius: 1px; background: #fafaf8;
+                            }
+                        }
+                    }
+                    Text { text: "speakiput"; font-size: 16px; font-weight: 700; color: #f2f5f1; vertical-alignment: center; }
+                }
+                NavItem { label: "General"; selected: root.active-page == SettingsPage.general; activated => { root.active-page = SettingsPage.general; } }
+                NavItem { label: "Recording"; selected: root.active-page == SettingsPage.recording; activated => { root.active-page = SettingsPage.recording; } }
+                NavItem { label: "Audio devices"; selected: root.active-page == SettingsPage.audio; activated => { root.active-page = SettingsPage.audio; } }
+                NavItem { label: "Transcription"; selected: root.active-page == SettingsPage.transcription; activated => { root.active-page = SettingsPage.transcription; } }
+                NavItem { label: "Post-processing"; selected: root.active-page == SettingsPage.post-processing; activated => { root.active-page = SettingsPage.post-processing; } }
+                NavItem { label: "Overlay"; selected: root.active-page == SettingsPage.overlay; activated => { root.active-page = SettingsPage.overlay; } }
+                NavItem { label: "Shortcut"; selected: root.active-page == SettingsPage.shortcut; activated => { root.active-page = SettingsPage.shortcut; } }
+                NavItem { label: "Text insertion"; selected: root.active-page == SettingsPage.output; activated => { root.active-page = SettingsPage.output; } }
+                NavItem { label: "History"; selected: root.active-page == SettingsPage.history; activated => { root.active-page = SettingsPage.history; } }
+                NavItem { label: "Diagnostics"; selected: root.active-page == SettingsPage.diagnostics; activated => { root.active-page = SettingsPage.diagnostics; } }
+                Rectangle { vertical-stretch: 1; background: transparent; }
+                Rectangle {
+                    height: 58px; border-radius: 9px; background: #1c211e; border-width: 1px; border-color: #2e3430;
+                    HorizontalLayout {
+                        padding: 10px; spacing: 9px;
+                        Rectangle { width: 9px; height: 9px; border-radius: 5px; background: root.backend-state == UiState.error || root.backend-state == UiState.disconnected ? #c75b52 : root.backend-state == UiState.recording ? #df6b56 : #6d8c72; }
+                        Text { text: root.status-text; color: #b8c0ba; font-size: 11px; vertical-alignment: center; wrap: word-wrap; }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            background: transparent;
+            HorizontalLayout {
+                x: 28px;
+                y: 28px;
+                width: parent.width - 56px;
+                height: 38px;
+                Text { text: root.backend-state == UiState.recording ? "Recording in progress" : "Settings"; color: #eef2ee; font-size: 13px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; }
+                AppButton { primary: true; text: root.backend-state == UiState.recording ? "Stop recording" : "Start recording"; clicked => { root.record-requested(); } }
+            }
+            Rectangle { x: 28px; y: 84px; width: parent.width - 56px; height: 1px; background: #303632; }
+            ScrollView {
+                x: 28px;
+                y: 103px;
+                width: parent.width - 56px;
+                height: parent.height - 205px;
+                viewport-width: self.width;
+                VerticalLayout {
+                    width: parent.width - 20px;
+                    spacing: 18px;
+
+                    if root.active-page == SettingsPage.general: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "General"; description: "Language, automatic stop and local history."; }
+                        FieldLabel { label: "Language"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; model: ["pt", "en", "es", "fr", "de", "auto"]; current-value <=> root.language; }
+                        if root.save-error-field == "general.language": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                        SettingRow { title: "Save dictation history"; help: "Keep raw and processed transcripts locally."; Toggle { x: parent.width - 62px; y: 19px; checked <=> root.history-enabled; } }
+                    }
+
+                    if root.active-page == SettingsPage.recording: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Recording"; description: "Choose when silence automatically ends a recording."; }
+                        FieldLabel { label: "Auto-stop after silence (ms)"; }
+                        SpinBox { height: 34px; vertical-stretch: 0; value <=> root.auto-stop-ms; minimum: 250; maximum: 10000; }
+                        if root.save-error-field == "general.auto_stop_ms": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                        FieldLabel { label: "Phrase boundary silence (ms)"; }
+                        SpinBox { height: 34px; vertical-stretch: 0; value <=> root.phrase-silence-ms; minimum: 100; maximum: 5000; }
+                        if root.save-error-field == "audio.phrase_silence_ms": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                    }
+
+                    if root.active-page == SettingsPage.audio: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Audio devices"; description: "Select the microphone used by the background service."; }
+                        FieldLabel { label: "Input device"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; model: root.input-device-options; current-value <=> root.input-device; }
+                        if root.save-error-field == "audio.input_device_id": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                        Text { text: "Device availability is reported by the backend."; color: #929a94; font-size: 11px; }
+                    }
+
+                    if root.active-page == SettingsPage.transcription: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Transcription"; description: "Local Whisper model and optional vocabulary context."; }
+                        FieldLabel { label: "Backend"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; model: root.transcription-backend-options; current-value <=> root.transcription-backend; }
+                        FieldLabel { label: "Model"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; model: ["large-v3-turbo-q5_0", "large-v3-turbo", "medium", "small"]; current-value <=> root.transcription-model; }
+                        FieldLabel { label: "Model file"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; text <=> root.transcription-model-path; placeholder-text: "/path/to/ggml-model.bin"; }
+                        if root.save-error-field == "transcription": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                        FieldLabel { label: "Prompt / vocabulary context"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; text <=> root.transcription-prompt; placeholder-text: "Names, terminology or language context"; }
+                        FieldLabel { label: "Vocabulary (comma-separated)"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; text <=> root.transcription-vocabulary; placeholder-text: "Project names, people, terminology"; }
+                        SettingRow { title: "Remove filler words"; help: "Remove configured fillers and repeated-word stutters from final text."; Toggle { x: parent.width - 62px; y: 19px; checked <=> root.remove-filler-words; } }
+                        if root.remove-filler-words: VerticalLayout {
+                            spacing: 8px;
+                            FieldLabel { label: "Custom fillers (comma-separated; blank uses English defaults)"; }
+                            LineEdit { height: 34px; vertical-stretch: 0; text <=> root.filler-words; placeholder-text: "tipo, é..."; }
+                        }
+                    }
+
+                    if root.active-page == SettingsPage.post-processing: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Post-processing"; description: "Optionally clean punctuation without changing meaning."; }
+                        SettingRow { title: "Enable LLM cleanup"; help: "Falls back to the raw transcript if the provider is unavailable."; Toggle { x: parent.width - 62px; y: 19px; checked <=> root.post-processing-enabled; } }
+                        FieldLabel { label: "Backend"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled; model: root.post-processing-backend-options; current-value <=> root.post-processing-backend; }
+                        FieldLabel { label: "Model"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled; text <=> root.post-processing-model; }
+                        FieldLabel { label: "API endpoint"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled; text <=> root.post-processing-endpoint; }
+                        FieldLabel { label: "Credential ID (optional for local endpoints)"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled && root.credential-store-supported; text <=> root.post-processing-credential-id; placeholder-text: "Stored credential name"; }
+                        FieldLabel { label: "API key (leave blank to keep the stored value)"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled && root.credential-store-supported; input-type: password; text <=> root.post-processing-credential-secret; placeholder-text: "Stored securely by the desktop keyring"; }
+                        if !root.credential-store-supported: Text { text: "Secure credential storage is unavailable on this platform."; color: #e2907e; wrap: word-wrap; }
+                        FieldLabel { label: "Instruction"; }
+                        LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled; text <=> root.post-processing-instruction; }
+                        if root.save-error-field == "post_processing" || root.save-error-field == "post_processing.credential_id": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                    }
+
+                    if root.active-page == SettingsPage.overlay: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Recording overlay"; description: "A compact, focus-safe waveform while you speak."; }
+                        if !root.overlay-supported: Text { text: "A focus-safe overlay is unavailable in this desktop session. Recording remains available without it."; color: #e2907e; wrap: word-wrap; }
+                        SettingRow { title: "Show overlay"; help: "Display recording and processing state above normal windows."; Toggle { enabled: root.overlay-supported; x: parent.width - 62px; y: 19px; checked <=> root.overlay-enabled; } }
+                        FieldLabel { label: "Animation size"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; enabled: root.overlay-enabled && root.overlay-supported; model: ["Small", "Medium", "Large"]; current-value <=> root.overlay-size; }
+                        FieldLabel { label: "Screen position"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; enabled: root.overlay-enabled && root.overlay-supported; model: ["Top left", "Top center", "Top right", "Center left", "Center", "Center right", "Bottom left", "Bottom center", "Bottom right"]; current-value <=> root.overlay-position; }
+                    }
+
+                    if root.active-page == SettingsPage.shortcut: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Shortcut"; description: "Click the field, press a combination, then save the changes."; }
+                        if !root.shortcut-supported: Text { text: "Global shortcuts are unavailable on this platform."; color: #e2907e; wrap: word-wrap; }
+                        FieldLabel { label: "Record shortcut"; }
+                        ShortcutRecorder { enabled: root.shortcut-supported; shortcut <=> root.shortcut; }
+                        if root.save-error-field == "shortcut.record": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                    }
+
+                    if root.active-page == SettingsPage.output: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Text insertion"; description: "Choose how final text reaches the focused application."; }
+                        FieldLabel { label: "Output mode"; }
+                        ComboBox { height: 34px; vertical-stretch: 0; model: root.keyboard-insertion-supported ? ["Keyboard", "Clipboard", "None"] : ["Clipboard", "None"]; current-value <=> root.output-mode; }
+                        if !root.keyboard-insertion-supported: Text { text: "Direct keyboard insertion is unavailable; clipboard output remains available."; color: #e2907e; wrap: word-wrap; }
+                        FieldLabel { label: "Key delay (ms)"; }
+                        SpinBox { height: 34px; vertical-stretch: 0; enabled: root.output-mode == "Keyboard"; value <=> root.key-delay-ms; minimum: 0; maximum: 1000; }
+                        if root.save-error-field == "output.key_delay_ms": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                    }
+
+                    if root.active-page == SettingsPage.history: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "History"; description: "Raw and processed transcripts remain distinguishable."; }
+                        Text { text: root.history-enabled ? "History is stored locally." : "History is disabled."; color: #aab1ac; }
+                        for entry in root.history-items: Rectangle {
+                            height: 54px; border-radius: 7px; background: #1c211e; border-width: 1px; border-color: #303632;
+                            Text { x: 12px; width: parent.width - 24px; text: entry; color: #c7cdc8; vertical-alignment: center; wrap: word-wrap; overflow: elide; }
+                        }
+                        AppButton { text: "Clear history"; enabled: root.history-enabled; clicked => { root.history-clear-requested(); } }
+                    }
+
+                    if root.active-page == SettingsPage.diagnostics: VerticalLayout {
+                        spacing: 18px;
+                        vertical-stretch: 0;
+                        SectionTitle { title: "Diagnostics"; description: "Backend, model, microphone and platform capability checks."; }
+                        Rectangle { height: 72px; border-radius: 9px; background: #1c211e; border-width: 1px; border-color: #303632; Text { x: 14px; width: parent.width - 28px; text: root.status-text; color: #c7cdc8; vertical-alignment: center; wrap: word-wrap; } }
+                        for check in root.diagnostic-items: Text { text: check; color: #c7cdc8; wrap: word-wrap; }
+                        if root.diagnostic-log-path != "": Text { text: "Log: " + root.diagnostic-log-path; color: #929a94; font-size: 11px; wrap: word-wrap; }
+                        AppButton { text: "Refresh checks"; clicked => { root.diagnostics-refresh-requested(); } }
+                    }
+                }
+            }
+            Rectangle { x: 28px; y: parent.height - 84px; width: parent.width - 56px; height: 1px; background: #303632; }
+            HorizontalLayout {
+                x: 28px;
+                y: parent.height - 66px;
+                width: parent.width - 56px;
+                height: 38px;
+                Text { text: root.save-error; color: #b54842; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; }
+                if root.settings-stale: AppButton { text: "Reload"; clicked => { root.reload-settings-requested(); } }
+                AppButton { primary: true; text: root.saving ? "Saving…" : "Save changes"; enabled: !root.saving; clicked => { root.save-requested(); } }
+            }
+        }
+    }
+}
+
+export component RecordingOverlay inherits Window {
+    title: "speakiput — Recording overlay";
+    no-frame: true;
+    always-on-top: true;
+    background: transparent;
+    preferred-width: root.pill-width;
+    preferred-height: root.pill-height;
+    min-width: self.preferred-width;
+    max-width: self.preferred-width;
+    min-height: self.preferred-height;
+    max-height: self.preferred-height;
+
+    in property <UiState> backend-state: UiState.recording;
+    in property <float> audio-level: 0.0;
+    in property <string> size-preset: "Medium";
+    in-out property <bool> presented: false;
+    property <length> pill-width: root.size-preset == "Small" ? 138px : root.size-preset == "Large" ? 204px : 166px;
+    property <length> pill-height: root.size-preset == "Small" ? 48px : root.size-preset == "Large" ? 68px : 58px;
+    property <color> active-color: root.backend-state == UiState.error ? #ff8a7a : root.backend-state == UiState.recording ? #fafaf8 : #b7c8bc;
+
+    Rectangle {
+        width: root.pill-width;
+        height: root.pill-height;
+        border-radius: self.height / 2;
+        background: #242424f5;
+        border-width: 1px;
+        border-color: #6c6c6c;
+        clip: true;
+        HorizontalLayout {
+            padding-left: 24px; padding-right: 24px;
+            padding-top: 8px; padding-bottom: 8px;
+            spacing: 5px;
+            alignment: center;
+            for factor[index] in [0.35, 0.55, 0.75, 1.0, 0.65, 0.9, 0.55, 0.4, 0.3]: Rectangle {
+                width: root.size-preset == "Large" ? 5px : 4px;
+                background: transparent;
+                Rectangle {
+                    width: parent.width;
+                    height: 7px + (parent.height - 7px) * root.audio-level * factor;
+                    y: parent.height / 2 - self.height / 2;
+                    border-radius: self.width / 2;
+                    background: root.active-color;
+                    animate height { duration: 80ms; easing: ease-out; }
+                }
+            }
+        }
+    }
+}
+
+export component AppTray inherits SystemTrayIcon {
+    icon: @image-url("../assets/tray-icon.svg");
+    tooltip: root.status-text;
+    title: "speakiput";
+    in-out property <string> status-text: "speakiput — Idle";
+    in-out property <bool> recording: false;
+    callback open-settings();
+    callback record-requested();
+    callback quit-requested();
+    clicked => { root.open-settings(); }
+    Menu {
+        MenuItem { title: "Open settings"; activated => { root.open-settings(); } }
+        MenuItem { title: root.recording ? "Stop recording" : "Start recording"; activated => { root.record-requested(); } }
+        MenuSeparator { }
+        MenuItem { title: "Quit speakiput UI"; activated => { root.quit-requested(); } }
+    }
+}

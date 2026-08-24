@@ -1,0 +1,16 @@
+{
+  "protocol_version": "1.0",
+  "message_id": "b3a7da07-27dc-4be4-be26-820365b9aec5",
+  "kind": "response",
+  "name": "state.get",
+  "sent_at": "2026-08-23T21:30:01Z",
+  "correlation_id": "b802863a-9642-4b13-b14b-92f309d467fc",
+  "instance_id": "e68d1332-90e0-4378-a887-7f4ef69c81a2",
+  "payload": {
+    "state": "idle",
+    "active_session_id": null,
+    "settings_revision": 3,
+    "capabilities": ["local_whisper", "post_processing", "history", "credential_store", "keyboard_insertion", "clipboard", "global_shortcut", "focus_safe_overlay"],
+    "health": "ready"
+  }
+}

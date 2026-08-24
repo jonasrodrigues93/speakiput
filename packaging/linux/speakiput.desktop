@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=speakiput
+Comment=Native desktop dictation
+Exec=speakiput
+Icon=io.github.jonas.speakiput
+Terminal=false
+Categories=Utility;Accessibility;
+StartupNotify=true
+StartupWMClass=io.github.jonas.speakiput
+X-GNOME-UsesNotifications=true

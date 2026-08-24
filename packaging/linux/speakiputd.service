@@ -1,0 +1,14 @@
+[Unit]
+Description=speakiput background dictation service
+Documentation=https://github.com/jonas/speakiput
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/speakiputd
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

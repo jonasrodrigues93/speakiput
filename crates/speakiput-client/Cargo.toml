@@ -1,0 +1,16 @@
+[package]
+name = "speakiput-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+speakiput-contract = { path = "../speakiput-contract" }
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

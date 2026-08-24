@@ -1,0 +1,54 @@
+{
+  "protocol_version": "1.0",
+  "message_id": "05c501ab-10d3-48f3-bfb5-6d0b41f9a7ad",
+  "kind": "response",
+  "name": "settings.get",
+  "sent_at": "2026-08-23T21:30:01Z",
+  "correlation_id": "e496d297-c4cb-4a58-a890-0308875d915a",
+  "instance_id": "e68d1332-90e0-4378-a887-7f4ef69c81a2",
+  "payload": {
+    "revision": 3,
+    "settings": {
+      "schema_version": 1,
+      "general": {
+        "language": "pt",
+        "auto_stop_ms": 1000,
+        "history_enabled": true
+      },
+      "audio": {
+        "input_device_id": "default",
+        "phrase_silence_ms": 700
+      },
+      "transcription": {
+        "backend_id": "local-whisper",
+        "model_id": "large-v3-turbo-q5_0",
+        "model_path": "/home/user/.local/share/speakiput/models/ggml-large-v3-turbo-q5_0.bin",
+        "prompt": null,
+        "vocabulary": [],
+        "remove_filler_words": false,
+        "filler_words": []
+      },
+      "post_processing": {
+        "enabled": true,
+        "backend_id": "openai-compatible",
+        "model_id": "gemma-4-26b-no-reasoning",
+        "endpoint": "http://127.0.0.1:1234/v1/chat/completions",
+        "credential_id": null,
+        "instruction": "Correct punctuation without adding content."
+      },
+      "output": {
+        "mode": "keyboard",
+        "key_delay_ms": 2
+      },
+      "shortcut": {
+        "record": "Super+Shift+Space"
+      },
+      "overlay": {
+        "enabled": true,
+        "show_partial_transcript": true,
+        "size": "medium",
+        "screen_anchor": "bottom_center"
+      }
+    }
+  }
+}

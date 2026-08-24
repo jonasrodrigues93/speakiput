@@ -1,0 +1,9 @@
+# Derived from whisrs contrib/99-whisrs.rules at commit
+# 28139bd8c4ff17e8d0fd156a0d903a7baa423d48. Copyright (c) 2025-present
+# Yosif Kitaneh, used under the MIT License.
+
+# Let the active desktop user open the virtual keyboard used for native text
+# insertion. The explicit ACL also handles systems where another udev rule
+# overrides the traditional group permissions.
+KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input", TAG+="uaccess"
+KERNEL=="uinput", SUBSYSTEM=="misc", TEST=="/usr/bin/setfacl", RUN+="/usr/bin/setfacl -m g:input:rw /dev/$name"

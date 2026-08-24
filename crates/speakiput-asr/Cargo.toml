@@ -1,0 +1,23 @@
+[package]
+name = "speakiput-asr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+local-whisper = ["dep:whisper-rs"]
+vulkan = ["local-whisper", "whisper-rs/vulkan"]
+cuda = ["local-whisper", "whisper-rs/cuda"]
+
+[dependencies]
+async-trait.workspace = true
+regex.workspace = true
+speakiput-audio = { path = "../speakiput-audio" }
+thiserror.workspace = true
+tokio.workspace = true
+whisper-rs = { workspace = true, optional = true }
+
+[lints]
+workspace = true

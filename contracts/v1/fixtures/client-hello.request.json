@@ -1,0 +1,12 @@
+{
+  "protocol_version": "1.0",
+  "message_id": "177548ce-37de-48e6-b778-deef642578f0",
+  "kind": "request",
+  "name": "client.hello",
+  "sent_at": "2026-08-23T21:30:00Z",
+  "payload": {
+    "supported_versions": ["1.0"],
+    "client": { "name": "speakiput", "version": "0.1.0" },
+    "subscriptions": ["state", "session", "transcript", "history", "settings"]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "protocol_version": "1.0",
+  "message_id": "47cdb850-c5cf-4daf-b52b-a194856ec995",
+  "kind": "response",
+  "name": "recording.start",
+  "sent_at": "2026-08-23T21:31:00Z",
+  "correlation_id": "af755268-6d89-4bec-a312-b22b7674bc13",
+  "instance_id": "e68d1332-90e0-4378-a887-7f4ef69c81a2",
+  "payload": {
+    "session_id": "1ecda715-bd79-43b4-b187-4cf859b20001",
+    "state": "recording"
+  }
+}

@@ -1,0 +1,15 @@
+[package]
+name = "speakiput-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+speakiput-contract = { path = "../speakiput-contract" }
+speakiput-llm = { path = "../speakiput-llm" }
+thiserror.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

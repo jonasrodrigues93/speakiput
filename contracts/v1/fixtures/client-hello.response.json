@@ -1,0 +1,15 @@
+{
+  "protocol_version": "1.0",
+  "message_id": "51fc3dd4-f176-4ca5-a1f8-cd994dcbe568",
+  "kind": "response",
+  "name": "client.hello",
+  "sent_at": "2026-08-23T21:30:00Z",
+  "correlation_id": "177548ce-37de-48e6-b778-deef642578f0",
+  "instance_id": "e68d1332-90e0-4378-a887-7f4ef69c81a2",
+  "payload": {
+    "selected_version": "1.0",
+    "server": { "name": "speakiputd", "version": "0.1.0" },
+    "capabilities": ["local_whisper", "post_processing", "history", "credential_store", "keyboard_insertion", "clipboard", "global_shortcut", "focus_safe_overlay"],
+    "limits": { "max_frame_bytes": 1048576 }
+  }
+}
