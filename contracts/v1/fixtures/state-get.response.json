@@ -10,7 +10,7 @@
     "state": "idle",
     "active_session_id": null,
     "settings_revision": 3,
-    "capabilities": ["local_whisper", "post_processing", "history", "credential_store", "keyboard_insertion", "clipboard", "global_shortcut", "focus_safe_overlay"],
+    "capabilities": ["local_whisper", "post_processing", "prompt_rewrite", "history", "credential_store", "keyboard_insertion", "clipboard", "global_shortcut", "focus_safe_overlay"],
     "health": "ready"
   }
 }

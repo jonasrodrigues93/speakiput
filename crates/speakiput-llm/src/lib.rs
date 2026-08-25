@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 const SYSTEM_PROMPT: &str = "You are a text editing assistant. Apply the instruction to the text and return ONLY the resulting text. Your reply is inserted directly into the focused application: no preamble, explanation, commentary, surrounding quotes, markdown formatting or code fences.";
+pub const PROMPT_REWRITE_INSTRUCTION: &str = "Rewrite the spoken text as a clear, objective, structured prompt. Remove filler words, hesitations and redundancies. Organize the ideas and highlight the objective, context, requirements and constraints when present. Preserve the original context, intent, information and constraints exactly. Do not invent information, resolve ambiguities on your own, or add explanations or comments. Return only the rewritten prompt.";
 
 const LINE_BREAKS: [char; 7] = [
     '\n', '\r', '\u{000b}', '\u{000c}', '\u{0085}', '\u{2028}', '\u{2029}',
@@ -36,6 +37,11 @@ pub enum LlmError {
 #[async_trait]
 pub trait PostProcessor: Send + Sync {
     async fn process(&self, text: &str, instruction: &str) -> Result<String, LlmError>;
+}
+
+#[async_trait]
+pub trait PromptRewriter: Send + Sync {
+    async fn rewrite(&self, text: &str) -> Result<String, LlmError>;
 }
 
 pub struct OpenAiCompatibleProvider {
@@ -105,6 +111,13 @@ impl PostProcessor for OpenAiCompatibleProvider {
             return Err(LlmError::EmptyResponse);
         }
         Ok(cleaned)
+    }
+}
+
+#[async_trait]
+impl PromptRewriter for OpenAiCompatibleProvider {
+    async fn rewrite(&self, text: &str) -> Result<String, LlmError> {
+        self.process(text, PROMPT_REWRITE_INSTRUCTION).await
     }
 }
 

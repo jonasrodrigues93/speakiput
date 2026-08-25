@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use speakiput_asr::{
     AsrError, AudioChunk, LocalWhisperBackend, TranscriptionBackend, TranscriptionConfig,
 };
-use speakiput_llm::{LlmError, OpenAiCompatibleProvider, PostProcessor, ProviderConfig};
+use speakiput_llm::{LlmError, OpenAiCompatibleProvider, PostProcessor, PromptRewriter, ProviderConfig};
 use speakiput_storage::{CredentialRepository, SettingsRepository};
 use tokio::sync::mpsc;
 
@@ -136,5 +136,31 @@ impl PostProcessor for ConfiguredPostProcessor {
             api_key,
         })?;
         provider.process(transcript, instruction).await
+    }
+}
+
+#[async_trait]
+impl PromptRewriter for ConfiguredPostProcessor {
+    async fn rewrite(&self, transcript: &str) -> Result<String, LlmError> {
+        let settings = self
+            .settings
+            .get()
+            .map_err(|error| LlmError::InvalidConfiguration(error.to_string()))?
+            .settings;
+        let api_key = if let Some(credential_id) = settings.post_processing.credential_id.clone() {
+            let credentials = Arc::clone(&self.credentials);
+            tokio::task::spawn_blocking(move || credentials.get(&credential_id))
+                .await
+                .map_err(|error| LlmError::Request(error.to_string()))?
+                .map_err(|error| LlmError::InvalidConfiguration(error.to_string()))?
+        } else {
+            None
+        };
+        let provider = OpenAiCompatibleProvider::new(ProviderConfig {
+            endpoint: settings.post_processing.endpoint,
+            model_id: settings.post_processing.model_id,
+            api_key,
+        })?;
+        provider.rewrite(transcript).await
     }
 }

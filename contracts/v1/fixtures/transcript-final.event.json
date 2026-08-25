@@ -12,6 +12,7 @@
     "processed_text": "Teste de input por áudio.",
     "output_text": "Teste de input por áudio.",
     "post_processed": true,
+    "prompt_rewritten": false,
     "insertion": { "status": "inserted", "method": "keyboard" },
     "transcription_backend": "local-whisper",
     "language": "pt",

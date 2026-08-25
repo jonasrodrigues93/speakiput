@@ -245,6 +245,7 @@ fn apply_settings_model(window: &SettingsWindow, model: &GuiViewModel) {
     window.set_remove_filler_words(model.settings.transcription.remove_filler_words);
     window.set_filler_words(model.settings.transcription.filler_words.join(", ").into());
     window.set_post_processing_enabled(model.settings.post_processing.enabled);
+    window.set_prompt_rewrite_enabled(model.settings.post_processing.prompt_rewrite_enabled);
     window.set_post_processing_backend(model.settings.post_processing.backend_id.clone().into());
     window.set_post_processing_model(model.settings.post_processing.model_id.clone().into());
     window.set_post_processing_endpoint(model.settings.post_processing.endpoint.clone().into());
@@ -305,6 +306,7 @@ pub fn settings_from_window(window: &SettingsWindow) -> Settings {
         .map(str::to_owned)
         .collect();
     settings.post_processing.enabled = window.get_post_processing_enabled();
+    settings.post_processing.prompt_rewrite_enabled = window.get_prompt_rewrite_enabled();
     settings.post_processing.backend_id = window.get_post_processing_backend().to_string();
     settings.post_processing.model_id = window.get_post_processing_model().to_string();
     settings.post_processing.endpoint = window.get_post_processing_endpoint().to_string();

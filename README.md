@@ -80,6 +80,7 @@ Planning artifacts:
 
 - [Implementation plan](IMPLEMENTATION_PLAN.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Prompt processing specification](docs/PROMPT_PROCESSING_SPEC.md)
 - [whisrs reuse map](docs/WHISRS_REFERENCE.md)
 - [GUI/backend contract](contracts/v1/README.md)
 

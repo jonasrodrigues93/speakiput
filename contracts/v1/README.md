@@ -129,9 +129,11 @@ command; asynchronous completion is always represented by events.
 ```
 
 States are `starting`, `idle`, `recording`, `transcribing`,
-`post_processing`, `injecting`, `error` and `shutting_down`.
+`post_processing`, `injecting`, `error` and `shutting_down`. The
+`post_processing` state covers both the existing cleanup and optional prompt
+rewriting stages.
 
-Capability names in v1 are `local_whisper`, `post_processing`, `history`,
+Capability names in v1 are `local_whisper`, `post_processing`, `prompt_rewrite`, `history`,
 `credential_store`, `keyboard_insertion`, `clipboard`, `global_shortcut`,
 `focus_safe_overlay`, `tray` and `autostart`. They describe current-session
 availability; the GUI keeps unavailable controls visible but disabled.
@@ -145,6 +147,7 @@ availability; the GUI keeps unavailable controls visible but disabled.
   "processed_text": "Teste de input por áudio.",
   "output_text": "Teste de input por áudio.",
   "post_processed": true,
+  "prompt_rewritten": false,
   "insertion": { "status": "inserted", "method": "keyboard" },
   "transcription_backend": "local-whisper",
   "language": "pt",
@@ -153,8 +156,12 @@ availability; the GUI keeps unavailable controls visible but disabled.
 ```
 
 Insertion status is `inserted`, `clipboard`, `skipped` or `failed`. Keeping
-`raw_text`, `processed_text` and `output_text` separate makes ASR and LLM
-problems diagnosable.
+When prompt rewriting is enabled, `rewritten_text` contains its result and
+`output_text` contains the text actually sent to the target application.
+Keeping `raw_text`, `processed_text`, `rewritten_text` and `output_text`
+separate makes ASR, cleanup and rewriting problems diagnosable. The
+`post_processed` and `prompt_rewritten` flags identify which transformations
+were applied.
 
 `settings` v1 is a single validated document:
 
@@ -181,6 +188,7 @@ problems diagnosable.
   },
   "post_processing": {
     "enabled": true,
+    "prompt_rewrite_enabled": false,
     "backend_id": "openai-compatible",
     "model_id": "gemma-4-26b-no-reasoning",
     "endpoint": "http://127.0.0.1:1234/v1/chat/completions",

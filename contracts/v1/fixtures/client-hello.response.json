@@ -9,7 +9,7 @@
   "payload": {
     "selected_version": "1.0",
     "server": { "name": "speakiputd", "version": "0.1.0" },
-    "capabilities": ["local_whisper", "post_processing", "history", "credential_store", "keyboard_insertion", "clipboard", "global_shortcut", "focus_safe_overlay"],
+    "capabilities": ["local_whisper", "post_processing", "prompt_rewrite", "history", "credential_store", "keyboard_insertion", "clipboard", "global_shortcut", "focus_safe_overlay"],
     "limits": { "max_frame_bytes": 1048576 }
   }
 }

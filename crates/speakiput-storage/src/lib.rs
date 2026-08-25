@@ -280,6 +280,7 @@ mod tests {
             session_id: Uuid::new_v4(),
             raw_text: format!("raw {index}"),
             processed_text: format!("processed {index}"),
+            rewritten_text: None,
             output_text: format!("output {index}"),
             created_at: format!("2026-08-23T21:30:0{index}Z"),
         }

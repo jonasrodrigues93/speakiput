@@ -171,8 +171,12 @@ pub struct TranscriptFinalEvent {
     pub session_id: Uuid,
     pub raw_text: String,
     pub processed_text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rewritten_text: Option<String>,
     pub output_text: String,
     pub post_processed: bool,
+    #[serde(default)]
+    pub prompt_rewritten: bool,
     pub insertion: InsertionOutcome,
     pub transcription_backend: String,
     pub language: String,
@@ -252,7 +256,7 @@ impl Settings {
                 message: "backend and model must not be empty",
             });
         }
-        if self.post_processing.enabled
+        if (self.post_processing.enabled || self.post_processing.prompt_rewrite_enabled)
             && (self.post_processing.backend_id.trim().is_empty()
                 || self.post_processing.model_id.trim().is_empty()
                 || self.post_processing.endpoint.trim().is_empty()
@@ -260,7 +264,7 @@ impl Settings {
         {
             return Err(SettingsValidationError {
                 field: "post_processing",
-                message: "enabled post-processing requires backend, model and instruction",
+                message: "enabled text processing requires backend, model and instruction",
             });
         }
         if self.output.key_delay_ms > 1_000 {
@@ -360,6 +364,8 @@ impl Default for TranscriptionSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PostProcessingSettings {
     pub enabled: bool,
+    #[serde(default)]
+    pub prompt_rewrite_enabled: bool,
     pub backend_id: String,
     pub model_id: String,
     pub endpoint: String,
@@ -372,6 +378,7 @@ impl Default for PostProcessingSettings {
     fn default() -> Self {
         Self {
             enabled: true,
+            prompt_rewrite_enabled: false,
             backend_id: "openai-compatible".into(),
             model_id: "gemma-4-26b-no-reasoning".into(),
             endpoint: "http://127.0.0.1:1234/v1/chat/completions".into(),
@@ -528,6 +535,8 @@ pub struct HistoryEntry {
     pub session_id: Uuid,
     pub raw_text: String,
     pub processed_text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rewritten_text: Option<String>,
     pub output_text: String,
     pub created_at: String,
 }

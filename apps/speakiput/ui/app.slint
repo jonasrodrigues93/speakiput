@@ -204,6 +204,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> remove-filler-words: false;
     in-out property <string> filler-words: "";
     in-out property <bool> post-processing-enabled: true;
+    in-out property <bool> prompt-rewrite-enabled: false;
     in-out property <string> post-processing-backend: "openai-compatible";
     in property <[string]> post-processing-backend-options: ["openai-compatible"];
     in-out property <string> post-processing-model: "gemma-4-26b-no-reasoning";
@@ -358,6 +359,7 @@ export component SettingsWindow inherits Window {
                         vertical-stretch: 0;
                         SectionTitle { title: "Post-processing"; description: "Optionally clean punctuation without changing meaning."; }
                         SettingRow { title: "Enable LLM cleanup"; help: "Falls back to the raw transcript if the provider is unavailable."; Toggle { x: parent.width - 62px; y: 19px; checked <=> root.post-processing-enabled; } }
+                        SettingRow { title: "Rewrite as structured prompt"; help: "Remove speech clutter and organize the prompt without changing its intent."; Toggle { x: parent.width - 62px; y: 19px; checked <=> root.prompt-rewrite-enabled; } }
                         FieldLabel { label: "Backend"; }
                         ComboBox { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled; model: root.post-processing-backend-options; current-value <=> root.post-processing-backend; }
                         FieldLabel { label: "Model"; }

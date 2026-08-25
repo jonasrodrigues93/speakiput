@@ -66,7 +66,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         capabilities.push("autostart".into());
     }
     #[cfg(feature = "native")]
-    capabilities.extend(["local_whisper".into(), "post_processing".into()]);
+    capabilities.extend([
+        "local_whisper".into(),
+        "post_processing".into(),
+        "prompt_rewrite".into(),
+    ]);
     #[cfg(feature = "vulkan")]
     {
         capabilities.push("vulkan_acceleration".into());
@@ -92,12 +96,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let asr = Arc::new(ConfiguredLocalWhisper::new(settings_repository.clone()));
         let post_processor = Some(Arc::new(ConfiguredPostProcessor::new(
             settings_repository.clone(),
-            credential_repository,
+            credential_repository.clone(),
         )) as Arc<dyn speakiput_llm::PostProcessor>);
+        let prompt_rewriter = Some(Arc::new(ConfiguredPostProcessor::new(
+            settings_repository.clone(),
+            credential_repository,
+        )) as Arc<dyn speakiput_llm::PromptRewriter>);
         let service = service.with_runtime(RuntimeComponents {
             audio: Arc::new(CpalAudioSource),
             asr,
             post_processor,
+            prompt_rewriter,
             focus: platform.clone(),
             output: platform,
         });

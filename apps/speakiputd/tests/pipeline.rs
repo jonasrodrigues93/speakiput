@@ -10,7 +10,7 @@ use speakiput_client::{BackendClient, BackendService, ClientError, InMemoryBacke
 use speakiput_contract::{
     AudioDevice, Envelope, HistoryListResponse, Settings, StableErrorCode, TranscriptFinalEvent,
 };
-use speakiput_llm::{LlmError, PostProcessor};
+use speakiput_llm::{LlmError, PostProcessor, PromptRewriter};
 use speakiput_platform::{
     FocusService, FocusedTarget, InsertionMethod, InsertionResult, PlatformError, TextOutput,
 };
@@ -134,6 +134,16 @@ impl PostProcessor for FakePostProcessor {
     }
 }
 
+struct FakePromptRewriter;
+
+#[async_trait]
+impl PromptRewriter for FakePromptRewriter {
+    async fn rewrite(&self, text: &str) -> Result<String, LlmError> {
+        assert_eq!(text, "um raw raw words");
+        Ok("Write a structured prompt from the raw words.".into())
+    }
+}
+
 struct FakeFocus;
 
 #[async_trait]
@@ -203,6 +213,7 @@ async fn accepted_recording_reaches_final_event_history_and_output() {
             audio: Arc::new(FakeAudio),
             asr: Arc::new(FakeAsr),
             post_processor: Some(Arc::new(FakePostProcessor)),
+            prompt_rewriter: None,
             focus: Arc::new(FakeFocus),
             output: output.clone(),
         }),
@@ -259,6 +270,70 @@ async fn accepted_recording_reaches_final_event_history_and_output() {
 }
 
 #[tokio::test]
+async fn prompt_rewrite_is_a_separate_optional_stage_and_is_recorded() {
+    let directory = tempfile::tempdir().unwrap();
+    let settings = Arc::new(JsonSettingsRepository::new(
+        directory.path().join("settings.json"),
+    ));
+    let mut configured = Settings::default();
+    configured.post_processing.enabled = false;
+    configured.post_processing.prompt_rewrite_enabled = true;
+    settings.replace(0, configured).unwrap();
+    let output = Arc::new(FakeOutput::default());
+    let service = Arc::new(
+        SpeakiputService::new(
+            settings,
+            Arc::new(JsonlHistoryRepository::new(
+                directory.path().join("history.jsonl"),
+            )),
+            vec!["prompt_rewrite".into(), "keyboard_insertion".into()],
+            vec![],
+        )
+        .with_runtime(RuntimeComponents {
+            audio: Arc::new(FakeAudio),
+            asr: Arc::new(FakeAsr),
+            post_processor: None,
+            prompt_rewriter: Some(Arc::new(FakePromptRewriter)),
+            focus: Arc::new(FakeFocus),
+            output: output.clone(),
+        }),
+    );
+    let backend: Arc<dyn BackendService> = service;
+    let client = InMemoryBackendClient::connect(backend);
+    let mut events = client.subscribe();
+    let started = request(&client, "recording.start", json!({})).await;
+    let session_id = started.payload["session_id"].as_str().unwrap();
+    request(
+        &client,
+        "recording.stop",
+        json!({ "session_id": session_id }),
+    )
+    .await;
+    let final_event = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let event = events.recv().await.unwrap();
+            if event.name == "transcript.final" {
+                break event;
+            }
+        }
+    })
+    .await
+    .unwrap();
+    let transcript: TranscriptFinalEvent = final_event.payload_as().unwrap();
+    assert_eq!(transcript.processed_text, "um raw raw words");
+    assert_eq!(
+        transcript.rewritten_text.as_deref(),
+        Some("Write a structured prompt from the raw words.")
+    );
+    assert!(!transcript.post_processed);
+    assert!(transcript.prompt_rewritten);
+    assert_eq!(
+        output.0.lock().unwrap().as_slice(),
+        ["Write a structured prompt from the raw words."]
+    );
+}
+
+#[tokio::test]
 async fn cancellation_emits_one_terminal_event_and_never_inserts() {
     let directory = tempfile::tempdir().unwrap();
     let settings = Arc::new(JsonSettingsRepository::new(
@@ -278,6 +353,7 @@ async fn cancellation_emits_one_terminal_event_and_never_inserts() {
             audio: Arc::new(FakeAudio),
             asr: Arc::new(FakeAsr),
             post_processor: None,
+            prompt_rewriter: None,
             focus: Arc::new(FakeFocus),
             output: output.clone(),
         }),
@@ -324,6 +400,7 @@ async fn silence_auto_stop_finishes_the_accepted_session() {
             audio: Arc::new(AutoStopAudio),
             asr: Arc::new(FakeAsr),
             post_processor: None,
+            prompt_rewriter: None,
             focus: Arc::new(FakeFocus),
             output: Arc::new(FakeOutput::default()),
         }),
@@ -365,6 +442,7 @@ async fn transcription_failure_is_terminal_and_recovers_to_idle() {
             audio: Arc::new(FakeAudio),
             asr: Arc::new(FailingAsr),
             post_processor: None,
+            prompt_rewriter: None,
             focus: Arc::new(FakeFocus),
             output: Arc::new(FakeOutput::default()),
         }),
@@ -416,6 +494,7 @@ async fn microphone_failure_does_not_accept_or_strand_a_session() {
             audio: Arc::new(DeniedAudio),
             asr: Arc::new(FakeAsr),
             post_processor: None,
+            prompt_rewriter: None,
             focus: Arc::new(FakeFocus),
             output: Arc::new(FakeOutput::default()),
         }),

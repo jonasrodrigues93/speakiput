@@ -18,7 +18,7 @@ use speakiput_contract::{
     StateSnapshot, TranscriptFinalEvent,
 };
 use speakiput_core::{Action, LlmInsertion, StateMachine, Transition, prepare_llm_insertion};
-use speakiput_llm::PostProcessor;
+use speakiput_llm::{PostProcessor, PromptRewriter};
 use speakiput_platform::{FocusService, FocusedTarget, InsertionMethod, TextOutput};
 use speakiput_storage::{
     CredentialRepository, HistoryRepository, SettingsRepository, StorageError,
@@ -52,6 +52,7 @@ pub struct RuntimeComponents {
     pub audio: Arc<dyn AudioSource>,
     pub asr: Arc<dyn TranscriptionBackend>,
     pub post_processor: Option<Arc<dyn PostProcessor>>,
+    pub prompt_rewriter: Option<Arc<dyn PromptRewriter>>,
     pub focus: Arc<dyn FocusService>,
     pub output: Arc<dyn TextOutput>,
 }
@@ -1130,12 +1131,15 @@ async fn run_recording_pipeline_inner(
     let wants_post_processing = settings.post_processing.enabled
         && runtime.post_processor.is_some()
         && !cleaned_text.trim().is_empty();
+    let wants_prompt_rewrite = settings.post_processing.prompt_rewrite_enabled
+        && !cleaned_text.trim().is_empty();
+    let wants_text_processing = wants_post_processing || wants_prompt_rewrite;
     let wants_output = settings.output.mode != OutputMode::None && !cleaned_text.trim().is_empty();
     let transition = apply_transition(
         state,
         Action::TranscriptionComplete {
             session_id,
-            post_process: wants_post_processing,
+            post_process: wants_text_processing,
             inject: wants_output,
         },
     )
@@ -1158,17 +1162,43 @@ async fn run_recording_pipeline_inner(
         post_processed = true;
     }
 
+    let mut rewritten_text = None;
+    let mut prompt_rewritten = false;
+    if wants_prompt_rewrite {
+        let rewriter = runtime
+            .prompt_rewriter
+            .as_ref()
+            .ok_or_else(|| "prompt rewrite backend is unavailable".to_owned())?;
+        let rewritten = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            rewriter.rewrite(&processed_text),
+        )
+        .await
+        .map_err(|_| "prompt rewrite timed out".to_owned())?
+        .map_err(|error| format!("prompt rewrite failed: {error}"))?;
+        if rewritten.trim().is_empty() {
+            return Err("prompt rewrite returned empty text".into());
+        }
+        rewritten_text = Some(rewritten);
+        prompt_rewritten = true;
+    }
+
+    let final_text = rewritten_text
+        .as_deref()
+        .unwrap_or(&processed_text)
+        .to_owned();
+
     let is_terminal = focused_target
         .as_ref()
         .is_some_and(|target| target.is_terminal);
-    let (output_text, safety_refused) = if post_processed {
-        match prepare_llm_insertion(&processed_text, is_terminal) {
+    let (output_text, safety_refused) = if post_processed || prompt_rewritten {
+        match prepare_llm_insertion(&final_text, is_terminal) {
             LlmInsertion::Insert(text) => (text, false),
-            LlmInsertion::Empty => (processed_text.clone(), false),
+            LlmInsertion::Empty => (final_text.clone(), false),
             LlmInsertion::RefusedMultilineTerminal(text) => (text, true),
         }
     } else {
-        (processed_text.clone(), false)
+        (final_text.clone(), false)
     };
     let should_inject = wants_output && !safety_refused && !output_text.is_empty();
 
@@ -1249,6 +1279,7 @@ async fn run_recording_pipeline_inner(
                 session_id,
                 raw_text: raw_text.clone(),
                 processed_text: processed_text.clone(),
+                rewritten_text: rewritten_text.clone(),
                 output_text: output_text.clone(),
                 created_at: Utc::now().to_rfc3339(),
             })
@@ -1270,8 +1301,10 @@ async fn run_recording_pipeline_inner(
         session_id,
         raw_text,
         processed_text,
+        rewritten_text,
         output_text,
         post_processed,
+        prompt_rewritten,
         insertion,
         transcription_backend: settings.transcription.backend_id.clone(),
         language,
