@@ -1,4 +1,4 @@
-import { ComboBox, LineEdit, ScrollView, SpinBox } from "std-widgets.slint";
+import { ComboBox, LineEdit, ScrollView, SpinBox, TextEdit } from "std-widgets.slint";
 
 export enum UiState { disconnected, starting, idle, recording, transcribing, post-processing, injecting, error }
 export enum SettingsPage { general, recording, audio, transcription, post-processing, overlay, shortcut, output, history, diagnostics }
@@ -372,7 +372,7 @@ export component SettingsWindow inherits Window {
                         LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled && root.credential-store-supported; input-type: password; text <=> root.post-processing-credential-secret; placeholder-text: "Stored securely by the desktop keyring"; }
                         if !root.credential-store-supported: Text { text: "Secure credential storage is unavailable on this platform."; color: #e2907e; wrap: word-wrap; }
                         FieldLabel { label: "Instruction"; }
-                        LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled; text <=> root.post-processing-instruction; }
+                        TextEdit { height: 116px; vertical-stretch: 0; enabled: root.post-processing-enabled; text <=> root.post-processing-instruction; placeholder-text: "Instruction used to clean the transcript"; }
                         if root.save-error-field == "post_processing" || root.save-error-field == "post_processing.credential_id": Text { text: root.save-error; color: #b54842; font-size: 11px; }
                     }
 
