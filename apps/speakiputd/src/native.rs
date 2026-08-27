@@ -7,7 +7,9 @@ use async_trait::async_trait;
 use speakiput_asr::{
     AsrError, AudioChunk, LocalWhisperBackend, TranscriptionBackend, TranscriptionConfig,
 };
-use speakiput_llm::{LlmError, OpenAiCompatibleProvider, PostProcessor, PromptRewriter, ProviderConfig};
+use speakiput_llm::{
+    LlmError, OpenAiCompatibleProvider, PostProcessor, PromptRewriter, ProviderConfig,
+};
 use speakiput_storage::{CredentialRepository, SettingsRepository};
 use tokio::sync::mpsc;
 

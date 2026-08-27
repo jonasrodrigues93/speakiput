@@ -80,6 +80,10 @@ impl PostProcessor for OpenAiCompatibleProvider {
             model: self.config.model_id.clone(),
             messages: rewrite_messages(text, instruction),
             temperature: 0.3,
+            // Prompt rewriting should finish with a short, bounded answer. Without
+            // this limit local OpenAI-compatible servers may keep generating
+            // commentary until their default context limit is reached.
+            max_tokens: 512,
         };
         let api_key = self.config.api_key.as_deref().unwrap_or("local");
         let response = self
@@ -126,6 +130,7 @@ struct ChatRequest {
     model: String,
     messages: Vec<ChatMessage>,
     temperature: f32,
+    max_tokens: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

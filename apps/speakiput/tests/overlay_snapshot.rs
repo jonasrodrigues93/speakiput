@@ -35,4 +35,20 @@ fn render_recording_overlay() {
     image
         .save(output.join("recording-overlay.png"))
         .expect("overlay snapshot should be written");
+
+    overlay.set_backend_state(UiState::PostProcessing);
+    overlay.window().request_redraw();
+    let processing_frame = overlay
+        .window()
+        .take_snapshot()
+        .expect("processing overlay should render to an image");
+    let processing_image = ImageBuffer::<Rgba<u8>, _>::from_raw(
+        processing_frame.width(),
+        processing_frame.height(),
+        processing_frame.as_bytes().to_vec(),
+    )
+    .expect("processing overlay dimensions should match its pixel buffer");
+    processing_image
+        .save(output.join("processing-overlay.png"))
+        .expect("processing overlay snapshot should be written");
 }

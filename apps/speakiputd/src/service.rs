@@ -29,6 +29,8 @@ use tokio::{
 };
 use uuid::Uuid;
 
+const LLM_STAGE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 struct BackendState {
     machine: StateMachine,
     sequence: u64,
@@ -1131,8 +1133,8 @@ async fn run_recording_pipeline_inner(
     let wants_post_processing = settings.post_processing.enabled
         && runtime.post_processor.is_some()
         && !cleaned_text.trim().is_empty();
-    let wants_prompt_rewrite = settings.post_processing.prompt_rewrite_enabled
-        && !cleaned_text.trim().is_empty();
+    let wants_prompt_rewrite =
+        settings.post_processing.prompt_rewrite_enabled && !cleaned_text.trim().is_empty();
     let wants_text_processing = wants_post_processing || wants_prompt_rewrite;
     let wants_output = settings.output.mode != OutputMode::None && !cleaned_text.trim().is_empty();
     let transition = apply_transition(
@@ -1149,38 +1151,68 @@ async fn run_recording_pipeline_inner(
 
     let mut processed_text = cleaned_text;
     let mut post_processed = false;
+    // Prompt rewriting already includes cleanup instructions and should be a
+    // single provider call. Running both toggles used to make one dictation
+    // wait for two sequential 30-second requests before insertion.
     if current == DictationState::PostProcessing
+        && !wants_prompt_rewrite
         && let Some(processor) = &runtime.post_processor
-        && let Ok(Ok(processed)) = tokio::time::timeout(
-            std::time::Duration::from_secs(30),
+    {
+        let started = Instant::now();
+        tracing::info!(%session_id, text_len = processed_text.len(), "LLM cleanup started");
+        match tokio::time::timeout(
+            LLM_STAGE_TIMEOUT,
             processor.process(&processed_text, &settings.post_processing.instruction),
         )
         .await
-        && !processed.trim().is_empty()
-    {
-        processed_text = processed;
-        post_processed = true;
+        {
+            Ok(Ok(processed)) if !processed.trim().is_empty() => {
+                tracing::info!(
+                    %session_id,
+                    elapsed_ms = started.elapsed().as_millis(),
+                    output_len = processed.len(),
+                    "LLM cleanup completed"
+                );
+                processed_text = processed;
+                post_processed = true;
+            }
+            Ok(Ok(_)) => {
+                tracing::warn!(%session_id, elapsed_ms = started.elapsed().as_millis(), "LLM cleanup returned empty text; using transcript");
+            }
+            Ok(Err(error)) => {
+                tracing::warn!(%session_id, %error, elapsed_ms = started.elapsed().as_millis(), "LLM cleanup failed; using transcript");
+            }
+            Err(_) => {
+                tracing::warn!(%session_id, timeout_secs = LLM_STAGE_TIMEOUT.as_secs(), "LLM cleanup timed out; using transcript");
+            }
+        }
     }
 
     let mut rewritten_text = None;
     let mut prompt_rewritten = false;
     if wants_prompt_rewrite {
-        let rewriter = runtime
-            .prompt_rewriter
-            .as_ref()
-            .ok_or_else(|| "prompt rewrite backend is unavailable".to_owned())?;
-        let rewritten = tokio::time::timeout(
-            std::time::Duration::from_secs(30),
-            rewriter.rewrite(&processed_text),
-        )
-        .await
-        .map_err(|_| "prompt rewrite timed out".to_owned())?
-        .map_err(|error| format!("prompt rewrite failed: {error}"))?;
-        if rewritten.trim().is_empty() {
-            return Err("prompt rewrite returned empty text".into());
+        if let Some(rewriter) = runtime.prompt_rewriter.as_ref() {
+            let started = Instant::now();
+            tracing::info!(%session_id, text_len = processed_text.len(), "LLM prompt rewrite started");
+            match tokio::time::timeout(LLM_STAGE_TIMEOUT, rewriter.rewrite(&processed_text)).await {
+                Ok(Ok(rewritten)) if !rewritten.trim().is_empty() => {
+                    tracing::info!(%session_id, elapsed_ms = started.elapsed().as_millis(), output_len = rewritten.len(), "LLM prompt rewrite completed");
+                    rewritten_text = Some(rewritten);
+                    prompt_rewritten = true;
+                }
+                Ok(Ok(_)) => {
+                    tracing::warn!(%session_id, elapsed_ms = started.elapsed().as_millis(), "LLM prompt rewrite returned empty text; using processed transcript");
+                }
+                Ok(Err(error)) => {
+                    tracing::warn!(%session_id, %error, elapsed_ms = started.elapsed().as_millis(), "LLM prompt rewrite failed; using processed transcript");
+                }
+                Err(_) => {
+                    tracing::warn!(%session_id, timeout_secs = LLM_STAGE_TIMEOUT.as_secs(), "LLM prompt rewrite timed out; using processed transcript");
+                }
+            }
+        } else {
+            tracing::warn!(%session_id, "LLM prompt rewrite backend is unavailable; using processed transcript");
         }
-        rewritten_text = Some(rewritten);
-        prompt_rewritten = true;
     }
 
     let final_text = rewritten_text
@@ -1201,6 +1233,14 @@ async fn run_recording_pipeline_inner(
         (final_text.clone(), false)
     };
     let should_inject = wants_output && !safety_refused && !output_text.is_empty();
+
+    if safety_refused {
+        tracing::warn!(
+            %session_id,
+            output_len = final_text.len(),
+            "text insertion skipped: LLM output contains line breaks while a terminal is focused"
+        );
+    }
 
     if current == DictationState::PostProcessing {
         let transition = apply_transition(

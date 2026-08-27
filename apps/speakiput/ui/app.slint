@@ -463,9 +463,16 @@ export component RecordingOverlay inherits Window {
     in property <float> audio-level: 0.0;
     in property <string> size-preset: "Medium";
     in-out property <bool> presented: false;
-    property <length> pill-width: root.size-preset == "Small" ? 138px : root.size-preset == "Large" ? 204px : 166px;
+    property <length> pill-width: root.backend-state == UiState.post-processing ? (root.size-preset == "Large" ? 246px : 214px) : root.size-preset == "Small" ? 138px : root.size-preset == "Large" ? 204px : 166px;
     property <length> pill-height: root.size-preset == "Small" ? 48px : root.size-preset == "Large" ? 68px : 58px;
     property <color> active-color: root.backend-state == UiState.error ? #ff8a7a : root.backend-state == UiState.recording ? #fafaf8 : #b7c8bc;
+    property <int> processing-step: 0;
+
+    processing-timer := Timer {
+        interval: 140ms;
+        running: root.backend-state == UiState.post-processing;
+        triggered => { root.processing-step = Math.mod(root.processing-step + 1, 4); }
+    }
 
     Rectangle {
         width: root.pill-width;
@@ -475,7 +482,56 @@ export component RecordingOverlay inherits Window {
         border-width: 1px;
         border-color: #6c6c6c;
         clip: true;
-        HorizontalLayout {
+        if root.backend-state == UiState.post-processing: Rectangle {
+            width: root.pill-width;
+            height: root.pill-height;
+            Rectangle {
+                x: 20px;
+                y: (root.pill-height - self.height) / 2;
+                width: 24px;
+                height: 22px;
+                Rectangle {
+                    x: 0px; y: 9px - (root.processing-step == 0 ? 4px : 0px);
+                    width: 4px; height: 4px + (root.processing-step == 0 ? 8px : 0px);
+                    border-radius: 3px; background: root.processing-step == 0 ? #e8f3ea : #68836f;
+                    animate y { duration: 100ms; easing: ease-in-out; }
+                    animate height { duration: 100ms; easing: ease-in-out; }
+                }
+                Rectangle {
+                    x: 7px; y: 9px - (root.processing-step == 1 ? 4px : 0px);
+                    width: 4px; height: 4px + (root.processing-step == 1 ? 8px : 0px);
+                    border-radius: 3px; background: root.processing-step == 1 ? #e8f3ea : #68836f;
+                    animate y { duration: 100ms; easing: ease-in-out; }
+                    animate height { duration: 100ms; easing: ease-in-out; }
+                }
+                Rectangle {
+                    x: 14px; y: 9px - (root.processing-step == 2 ? 4px : 0px);
+                    width: 4px; height: 4px + (root.processing-step == 2 ? 8px : 0px);
+                    border-radius: 3px; background: root.processing-step == 2 ? #e8f3ea : #68836f;
+                    animate y { duration: 100ms; easing: ease-in-out; }
+                    animate height { duration: 100ms; easing: ease-in-out; }
+                }
+                Rectangle {
+                    x: 21px; y: 9px - (root.processing-step == 3 ? 4px : 0px);
+                    width: 4px; height: 4px + (root.processing-step == 3 ? 8px : 0px);
+                    border-radius: 3px; background: root.processing-step == 3 ? #e8f3ea : #68836f;
+                    animate y { duration: 100ms; easing: ease-in-out; }
+                    animate height { duration: 100ms; easing: ease-in-out; }
+                }
+            }
+            Text {
+                x: 54px;
+                y: 0px;
+                width: root.pill-width - 74px;
+                height: root.pill-height;
+                text: "Processando texto…";
+                color: #e8f3ea;
+                font-size: root.size-preset == "Large" ? 13px : 12px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+        if root.backend-state != UiState.post-processing: HorizontalLayout {
             padding-left: 24px; padding-right: 24px;
             padding-top: 8px; padding-bottom: 8px;
             spacing: 5px;
