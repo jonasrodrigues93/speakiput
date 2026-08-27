@@ -136,6 +136,29 @@ fn state_transition_table_rejects_invalid_shortcuts() {
 fn default_settings_are_valid_and_ranges_are_enforced() {
     let mut settings = Settings::default();
     settings.validate().unwrap();
+    settings.post_processing.prompt_rewrite_enabled = true;
+    settings.post_processing.prompt_rewrite_instruction.clear();
+    assert_eq!(
+        settings.validate().unwrap_err().field,
+        "post_processing.prompt_rewrite_instruction"
+    );
+    settings.post_processing.prompt_rewrite_instruction = Settings::default()
+        .post_processing
+        .prompt_rewrite_instruction;
+    settings.audio.noise_gate_threshold = 0;
+    assert_eq!(
+        settings.validate().unwrap_err().field,
+        "audio.noise_gate_threshold"
+    );
+    settings.audio.noise_gate_threshold = 3;
+    settings.audio.speech_confirmation_ms = 60;
+    settings.validate().unwrap();
+    settings.audio.speech_confirmation_ms = 1_001;
+    assert_eq!(
+        settings.validate().unwrap_err().field,
+        "audio.speech_confirmation_ms"
+    );
+    settings.audio.speech_confirmation_ms = 180;
     settings.general.auto_stop_ms = 0;
     assert_eq!(
         settings.validate().unwrap_err().field,

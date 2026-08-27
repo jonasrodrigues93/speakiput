@@ -221,6 +221,8 @@ fn apply_settings_model(window: &SettingsWindow, model: &GuiViewModel) {
         );
     window.set_input_device(selected_device.into());
     window.set_phrase_silence_ms(to_i32(model.settings.audio.phrase_silence_ms));
+    window.set_noise_gate_threshold(to_i32(u64::from(model.settings.audio.noise_gate_threshold)));
+    window.set_speech_confirmation_ms(to_i32(model.settings.audio.speech_confirmation_ms));
     window.set_transcription_backend(model.settings.transcription.backend_id.clone().into());
     window.set_transcription_model(model.settings.transcription.model_id.clone().into());
     window.set_transcription_model_path(
@@ -261,6 +263,14 @@ fn apply_settings_model(window: &SettingsWindow, model: &GuiViewModel) {
     window.set_post_processing_credential_secret("".into());
     window
         .set_post_processing_instruction(model.settings.post_processing.instruction.clone().into());
+    window.set_prompt_rewrite_instruction(
+        model
+            .settings
+            .post_processing
+            .prompt_rewrite_instruction
+            .clone()
+            .into(),
+    );
     window.set_overlay_enabled(model.settings.overlay.enabled);
     window.set_partial_transcript_enabled(model.settings.overlay.show_partial_transcript);
     window.set_overlay_size(size_label(model.settings.overlay.size).into());
@@ -286,6 +296,9 @@ pub fn settings_from_window(window: &SettingsWindow) -> Settings {
     settings.general.history_enabled = window.get_history_enabled();
     settings.audio.input_device_id = selected_id(&window.get_input_device());
     settings.audio.phrase_silence_ms = nonnegative(window.get_phrase_silence_ms());
+    settings.audio.noise_gate_threshold =
+        u32::try_from(nonnegative(window.get_noise_gate_threshold())).unwrap_or(u32::MAX);
+    settings.audio.speech_confirmation_ms = nonnegative(window.get_speech_confirmation_ms());
     settings.transcription.backend_id = window.get_transcription_backend().to_string();
     settings.transcription.model_id = window.get_transcription_model().to_string();
     settings.transcription.model_path = nonempty(window.get_transcription_model_path().to_string());
@@ -313,6 +326,8 @@ pub fn settings_from_window(window: &SettingsWindow) -> Settings {
     settings.post_processing.credential_id =
         nonempty(window.get_post_processing_credential_id().to_string());
     settings.post_processing.instruction = window.get_post_processing_instruction().to_string();
+    settings.post_processing.prompt_rewrite_instruction =
+        window.get_prompt_rewrite_instruction().to_string();
     settings.overlay.enabled = window.get_overlay_enabled();
     settings.overlay.show_partial_transcript = window.get_partial_transcript_enabled();
     settings.overlay.size = parse_size(&window.get_overlay_size());

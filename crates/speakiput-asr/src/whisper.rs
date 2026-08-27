@@ -35,7 +35,7 @@ impl SegmentationMode {
 mod implementation {
     use std::{path::Path, sync::Arc};
 
-    use speakiput_audio::{PhraseSplitter, SILENCE_RMS_THRESHOLD, audio_gate_reason};
+    use speakiput_audio::{PhraseSplitter, audio_gate_reason};
 
     use super::{
         AsrError, AudioChunk, MIN_DECODE_SAMPLES, SAMPLE_RATE, SILENCE_THRESHOLD,
@@ -46,6 +46,7 @@ mod implementation {
         context: Option<Arc<whisper_rs::WhisperContext>>,
         model_path: String,
         phrase_silence_ms: u64,
+        silence_threshold: f64,
         load_error: Option<String>,
     }
 
@@ -62,6 +63,7 @@ mod implementation {
                 context,
                 model_path,
                 phrase_silence_ms: 700,
+                silence_threshold: SILENCE_THRESHOLD,
                 load_error,
             }
         }
@@ -69,6 +71,12 @@ mod implementation {
         #[must_use]
         pub fn with_segmentation(mut self, _mode: &str, phrase_silence_ms: u64) -> Self {
             self.phrase_silence_ms = phrase_silence_ms.max(1);
+            self
+        }
+
+        #[must_use]
+        pub fn with_noise_gate_threshold(mut self, threshold: f64) -> Self {
+            self.silence_threshold = threshold.max(f64::EPSILON);
             self
         }
 
@@ -121,15 +129,17 @@ mod implementation {
         ) -> Result<(), AsrError> {
             let context = self.context()?;
             let mut splitter =
-                PhraseSplitter::new(SAMPLE_RATE, SILENCE_THRESHOLD, self.phrase_silence_ms);
+                PhraseSplitter::new(SAMPLE_RATE, self.silence_threshold, self.phrase_silence_ms);
             let mut state = create_state(&context)?;
             while let Some(chunk) = audio_rx.recv().await {
                 for phrase in splitter.feed(&chunk) {
-                    state = decode_phrase(state, phrase, config, &text_tx).await?;
+                    state = decode_phrase(state, phrase, config, &text_tx, self.silence_threshold)
+                        .await?;
                 }
             }
             if let Some(phrase) = splitter.flush() {
-                let _ = decode_phrase(state, phrase, config, &text_tx).await?;
+                let _ =
+                    decode_phrase(state, phrase, config, &text_tx, self.silence_threshold).await?;
             }
             Ok(())
         }
@@ -148,10 +158,11 @@ mod implementation {
         mut phrase: Vec<i16>,
         config: &TranscriptionConfig,
         text_tx: &mpsc::Sender<String>,
+        silence_threshold: f64,
     ) -> Result<whisper_rs::WhisperState, AsrError> {
         // Reject accidental taps and silent buffers before padding. Whisper
         // can otherwise turn a tiny/silent phrase into prompt-shaped text.
-        if audio_gate_reason(&phrase, 16_000, 300, SILENCE_RMS_THRESHOLD).is_some() {
+        if audio_gate_reason(&phrase, 16_000, 300, silence_threshold).is_some() {
             return Ok(state);
         }
         phrase.resize(phrase.len().max(MIN_DECODE_SAMPLES), 0);

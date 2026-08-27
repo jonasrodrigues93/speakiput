@@ -5,7 +5,7 @@ use chrono::Utc;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use speakiput_asr::{AsrError, TranscriptionBackend, TranscriptionConfig};
-use speakiput_audio::{AudioSource, AutoStopDetector, CaptureStopHandle, SILENCE_RMS_THRESHOLD};
+use speakiput_audio::{AudioSource, AutoStopDetector, CaptureStopHandle};
 use speakiput_client::{BackendService, ServiceOutput};
 use speakiput_contract::{
     AudioDevice, AudioDevicesResponse, BackendChoice, BackendHealth, BackendsResponse,
@@ -212,10 +212,13 @@ impl SpeakiputService {
         let (text_tx, mut text_rx) = mpsc::channel(16);
         let (auto_stop_tx, auto_stop_rx) = tokio::sync::oneshot::channel();
         let auto_stop_ms = settings.general.auto_stop_ms;
+        let noise_gate_threshold = settings.audio.noise_gate_threshold;
+        let speech_confirmation_ms = settings.audio.speech_confirmation_ms;
         let forward_task = tokio::spawn(async move {
-            let mut detector = AutoStopDetector::new(
-                SILENCE_RMS_THRESHOLD,
+            let mut detector = AutoStopDetector::with_confirmation(
+                f64::from(noise_gate_threshold) / 1000.0,
                 auto_stop_ms,
+                speech_confirmation_ms,
                 speakiput_audio::SAMPLE_RATE,
             );
             let mut auto_stop_tx = Some(auto_stop_tx);
@@ -1194,7 +1197,15 @@ async fn run_recording_pipeline_inner(
         if let Some(rewriter) = runtime.prompt_rewriter.as_ref() {
             let started = Instant::now();
             tracing::info!(%session_id, text_len = processed_text.len(), "LLM prompt rewrite started");
-            match tokio::time::timeout(LLM_STAGE_TIMEOUT, rewriter.rewrite(&processed_text)).await {
+            match tokio::time::timeout(
+                LLM_STAGE_TIMEOUT,
+                rewriter.rewrite(
+                    &processed_text,
+                    &settings.post_processing.prompt_rewrite_instruction,
+                ),
+            )
+            .await
+            {
                 Ok(Ok(rewritten)) if !rewritten.trim().is_empty() => {
                     tracing::info!(%session_id, elapsed_ms = started.elapsed().as_millis(), output_len = rewritten.len(), "LLM prompt rewrite completed");
                     rewritten_text = Some(rewritten);

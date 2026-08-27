@@ -242,6 +242,18 @@ impl Settings {
                 message: "must be between 100 and 5000",
             });
         }
+        if !(1..=100).contains(&self.audio.noise_gate_threshold) {
+            return Err(SettingsValidationError {
+                field: "audio.noise_gate_threshold",
+                message: "must be between 1 and 100",
+            });
+        }
+        if !(60..=1_000).contains(&self.audio.speech_confirmation_ms) {
+            return Err(SettingsValidationError {
+                field: "audio.speech_confirmation_ms",
+                message: "must be between 60 and 1000",
+            });
+        }
         if self.audio.input_device_id.trim().is_empty() {
             return Err(SettingsValidationError {
                 field: "audio.input_device_id",
@@ -265,6 +277,18 @@ impl Settings {
             return Err(SettingsValidationError {
                 field: "post_processing",
                 message: "enabled text processing requires backend, model and instruction",
+            });
+        }
+        if self.post_processing.prompt_rewrite_enabled
+            && self
+                .post_processing
+                .prompt_rewrite_instruction
+                .trim()
+                .is_empty()
+        {
+            return Err(SettingsValidationError {
+                field: "post_processing.prompt_rewrite_instruction",
+                message: "prompt rewrite instruction must not be empty when enabled",
             });
         }
         if self.output.key_delay_ms > 1_000 {
@@ -322,6 +346,16 @@ impl Default for GeneralSettings {
 pub struct AudioSettings {
     pub input_device_id: String,
     pub phrase_silence_ms: u64,
+    #[serde(
+        default = "default_noise_gate_threshold",
+        skip_serializing_if = "is_default_noise_gate_threshold"
+    )]
+    pub noise_gate_threshold: u32,
+    #[serde(
+        default = "default_speech_confirmation_ms",
+        skip_serializing_if = "is_default_speech_confirmation_ms"
+    )]
+    pub speech_confirmation_ms: u64,
 }
 
 impl Default for AudioSettings {
@@ -329,8 +363,23 @@ impl Default for AudioSettings {
         Self {
             input_device_id: "default".into(),
             phrase_silence_ms: 700,
+            noise_gate_threshold: 3,
+            speech_confirmation_ms: 180,
         }
     }
+}
+
+const fn default_noise_gate_threshold() -> u32 {
+    3
+}
+const fn default_speech_confirmation_ms() -> u64 {
+    180
+}
+const fn is_default_noise_gate_threshold(value: &u32) -> bool {
+    *value == 3
+}
+const fn is_default_speech_confirmation_ms(value: &u64) -> bool {
+    *value == 180
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -372,6 +421,11 @@ pub struct PostProcessingSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credential_id: Option<String>,
     pub instruction: String,
+    #[serde(
+        default = "default_prompt_rewrite_instruction",
+        skip_serializing_if = "is_default_prompt_rewrite_instruction"
+    )]
+    pub prompt_rewrite_instruction: String,
 }
 
 impl Default for PostProcessingSettings {
@@ -384,8 +438,17 @@ impl Default for PostProcessingSettings {
             endpoint: "http://127.0.0.1:1234/v1/chat/completions".into(),
             credential_id: None,
             instruction: "Correct punctuation without adding content.".into(),
+            prompt_rewrite_instruction: default_prompt_rewrite_instruction(),
         }
     }
+}
+
+fn default_prompt_rewrite_instruction() -> String {
+    "Rewrite the spoken text as a clear, objective, structured prompt. Remove filler words, hesitations and redundancies. Organize the ideas and highlight the objective, context, requirements and constraints when present. Preserve the original context, intent, information and constraints exactly. Do not invent information, resolve ambiguities on your own, or add explanations or comments. Return only the rewritten prompt.".into()
+}
+
+fn is_default_prompt_rewrite_instruction(value: &String) -> bool {
+    value == &default_prompt_rewrite_instruction()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

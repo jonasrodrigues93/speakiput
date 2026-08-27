@@ -195,6 +195,8 @@ export component SettingsWindow inherits Window {
     in-out property <string> input-device: "default";
     in property <[string]> input-device-options: ["default"];
     in-out property <int> phrase-silence-ms: 700;
+    in-out property <int> noise-gate-threshold: 3;
+    in-out property <int> speech-confirmation-ms: 180;
     in-out property <string> transcription-backend: "local-whisper";
     in property <[string]> transcription-backend-options: ["local-whisper"];
     in-out property <string> transcription-model: "large-v3-turbo-q5_0";
@@ -212,6 +214,7 @@ export component SettingsWindow inherits Window {
     in-out property <string> post-processing-credential-id: "";
     in-out property <string> post-processing-credential-secret: "";
     in-out property <string> post-processing-instruction: "Correct punctuation without adding content.";
+    in-out property <string> prompt-rewrite-instruction: "Rewrite the spoken text as a clear, objective, structured prompt. Remove filler words, hesitations and redundancies. Organize the ideas and highlight the objective, context, requirements and constraints when present. Preserve the original context, intent, information and constraints exactly. Do not invent information, resolve ambiguities on your own, or add explanations or comments. Return only the rewritten prompt.";
     in-out property <bool> overlay-enabled: true;
     in-out property <bool> partial-transcript-enabled: true;
     in-out property <string> overlay-size: "Medium";
@@ -328,6 +331,14 @@ export component SettingsWindow inherits Window {
                         FieldLabel { label: "Input device"; }
                         ComboBox { height: 34px; vertical-stretch: 0; model: root.input-device-options; current-value <=> root.input-device; }
                         if root.save-error-field == "audio.input_device_id": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                        FieldLabel { label: "Noise gate threshold (RMS × 1000)"; }
+                        SpinBox { height: 34px; vertical-stretch: 0; value <=> root.noise-gate-threshold; minimum: 1; maximum: 100; }
+                        Text { text: "Raise this value to reject quieter background noise; lower it for a distant microphone."; color: #929a94; font-size: 11px; wrap: word-wrap; }
+                        if root.save-error-field == "audio.noise_gate_threshold": Text { text: root.save-error; color: #b54842; font-size: 11px; }
+                        FieldLabel { label: "Speech confirmation (ms)"; }
+                        SpinBox { height: 34px; vertical-stretch: 0; value <=> root.speech-confirmation-ms; minimum: 60; maximum: 1000; }
+                        Text { text: "A sound must remain above the gate for this long to count as speech. Increase it to ignore taps and knocks."; color: #929a94; font-size: 11px; wrap: word-wrap; }
+                        if root.save-error-field == "audio.speech_confirmation_ms": Text { text: root.save-error; color: #b54842; font-size: 11px; }
                         Text { text: "Device availability is reported by the backend."; color: #929a94; font-size: 11px; }
                     }
 
@@ -371,8 +382,10 @@ export component SettingsWindow inherits Window {
                         FieldLabel { label: "API key (leave blank to keep the stored value)"; }
                         LineEdit { height: 34px; vertical-stretch: 0; enabled: root.post-processing-enabled && root.credential-store-supported; input-type: password; text <=> root.post-processing-credential-secret; placeholder-text: "Stored securely by the desktop keyring"; }
                         if !root.credential-store-supported: Text { text: "Secure credential storage is unavailable on this platform."; color: #e2907e; wrap: word-wrap; }
-                        FieldLabel { label: "Instruction"; }
+                        FieldLabel { label: "FALER improvement instruction"; }
                         TextEdit { height: 116px; vertical-stretch: 0; enabled: root.post-processing-enabled; text <=> root.post-processing-instruction; placeholder-text: "Instruction used to clean the transcript"; }
+                        FieldLabel { label: "General prompt improvement instruction"; }
+                        TextEdit { height: 150px; vertical-stretch: 0; enabled: root.prompt-rewrite-enabled; text <=> root.prompt-rewrite-instruction; placeholder-text: "Instruction used to rewrite the transcript as a prompt"; }
                         if root.save-error-field == "post_processing" || root.save-error-field == "post_processing.credential_id": Text { text: root.save-error; color: #b54842; font-size: 11px; }
                     }
 

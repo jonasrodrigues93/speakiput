@@ -80,35 +80,66 @@ pub struct AutoStopDetector {
     threshold: f64,
     silent_samples: u64,
     timeout_samples: u64,
+    confirmation_samples: u64,
+    voiced_candidate_samples: u64,
     speech_detected: bool,
 }
 
 impl AutoStopDetector {
     #[must_use]
     pub fn new(threshold: f64, timeout_ms: u64, sample_rate: u32) -> Self {
+        Self::with_confirmation(threshold, timeout_ms, 0, sample_rate)
+    }
+
+    /// Creates a detector with a temporal voice confirmation window. Short
+    /// transients can cross the RMS threshold without cancelling the stop
+    /// timer, which prevents taps and knocks from keeping a session alive.
+    #[must_use]
+    pub fn with_confirmation(
+        threshold: f64,
+        timeout_ms: u64,
+        confirmation_ms: u64,
+        sample_rate: u32,
+    ) -> Self {
         let timeout_samples = (timeout_ms.saturating_mul(u64::from(sample_rate)) / 1000).max(1);
+        let confirmation_samples = confirmation_ms.saturating_mul(u64::from(sample_rate)) / 1000;
         Self {
             threshold,
             silent_samples: 0,
             timeout_samples,
+            confirmation_samples,
+            voiced_candidate_samples: 0,
             speech_detected: false,
         }
     }
 
     pub fn feed(&mut self, samples: &[i16]) -> bool {
-        if is_silent(samples, self.threshold) {
-            self.silent_samples = self
-                .silent_samples
-                .saturating_add(u64::try_from(samples.len()).unwrap_or(u64::MAX));
+        let sample_count = u64::try_from(samples.len()).unwrap_or(u64::MAX);
+        if rms_energy(samples) >= self.threshold {
+            self.voiced_candidate_samples =
+                self.voiced_candidate_samples.saturating_add(sample_count);
+            if !self.speech_detected && self.voiced_candidate_samples >= self.confirmation_samples {
+                self.speech_detected = true;
+                self.silent_samples = 0;
+            } else if self.speech_detected
+                && self.voiced_candidate_samples >= self.confirmation_samples
+            {
+                self.silent_samples = 0;
+            } else if self.speech_detected {
+                self.silent_samples = self.silent_samples.saturating_add(sample_count);
+            }
         } else {
-            self.silent_samples = 0;
-            self.speech_detected = true;
+            self.voiced_candidate_samples = 0;
+            if self.speech_detected {
+                self.silent_samples = self.silent_samples.saturating_add(sample_count);
+            }
         }
         self.speech_detected && self.silent_samples >= self.timeout_samples
     }
 
     pub const fn reset(&mut self) {
         self.silent_samples = 0;
+        self.voiced_candidate_samples = 0;
         self.speech_detected = false;
     }
 
@@ -233,5 +264,14 @@ mod tests {
         let mut detector = AutoStopDetector::new(0.01, 100, 16_000);
         detector.feed(&vec![10_000; 1_600]);
         assert!(detector.feed(&vec![0; 1_600]));
+    }
+
+    #[test]
+    fn short_transient_does_not_restart_silence_timer() {
+        let mut detector = AutoStopDetector::with_confirmation(0.01, 500, 200, 16_000);
+        assert!(!detector.feed(&vec![10_000; 4_000]));
+        assert!(!detector.feed(&vec![0; 4_000]));
+        assert!(!detector.feed(&vec![10_000; 1_600]));
+        assert!(detector.feed(&vec![0; 4_000]));
     }
 }

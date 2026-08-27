@@ -138,7 +138,7 @@ struct FakePromptRewriter;
 
 #[async_trait]
 impl PromptRewriter for FakePromptRewriter {
-    async fn rewrite(&self, text: &str) -> Result<String, LlmError> {
+    async fn rewrite(&self, text: &str, _instruction: &str) -> Result<String, LlmError> {
         assert_eq!(text, "um raw raw words");
         Ok("Write a structured prompt from the raw words.".into())
     }

@@ -175,7 +175,9 @@ were applied.
   },
   "audio": {
     "input_device_id": "default",
-    "phrase_silence_ms": 700
+    "phrase_silence_ms": 700,
+    "noise_gate_threshold": 3,
+    "speech_confirmation_ms": 180
   },
   "transcription": {
     "backend_id": "local-whisper",
@@ -193,7 +195,8 @@ were applied.
     "model_id": "gemma-4-26b-no-reasoning",
     "endpoint": "http://127.0.0.1:1234/v1/chat/completions",
     "credential_id": null,
-    "instruction": "Correct punctuation without adding content."
+    "instruction": "Correct punctuation without adding content.",
+    "prompt_rewrite_instruction": "Rewrite the spoken text as a clear, objective, structured prompt."
   },
   "output": {
     "mode": "keyboard",
@@ -210,6 +213,12 @@ were applied.
   }
 }
 ```
+
+`audio.noise_gate_threshold` is the normalized RMS gate multiplied by 1000
+(1..100). `audio.speech_confirmation_ms` requires sound above that gate to be
+continuous for the configured duration before it counts as speech. These
+optional fields default to `3` and `180`; clients and stored settings from
+older v1 revisions remain valid.
 
 Overlay sizes are `small`, `medium` and `large`. Screen anchors combine a
 vertical and horizontal region: `top_left`, `top_center`, `top_right`,

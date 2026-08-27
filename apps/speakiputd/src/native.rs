@@ -21,7 +21,7 @@ pub struct ConfiguredLocalWhisper {
 }
 
 struct CachedWhisper {
-    key: (String, u64),
+    key: (String, u64, u32),
     backend: Arc<LocalWhisperBackend>,
 }
 
@@ -40,7 +40,11 @@ impl ConfiguredLocalWhisper {
             .map_err(|error| AsrError::Unavailable(error.to_string()))?
             .settings;
         let path = settings.transcription.model_path.unwrap_or_default();
-        let key = (path.clone(), settings.audio.phrase_silence_ms);
+        let key = (
+            path.clone(),
+            settings.audio.phrase_silence_ms,
+            settings.audio.noise_gate_threshold,
+        );
         let mut cached = self
             .cached
             .lock()
@@ -50,7 +54,8 @@ impl ConfiguredLocalWhisper {
         }
         let backend = Arc::new(
             LocalWhisperBackend::new(path)
-                .with_segmentation("silence", settings.audio.phrase_silence_ms),
+                .with_segmentation("silence", settings.audio.phrase_silence_ms)
+                .with_noise_gate_threshold(f64::from(settings.audio.noise_gate_threshold) / 1000.0),
         );
         *cached = Some(CachedWhisper {
             key,
@@ -143,7 +148,7 @@ impl PostProcessor for ConfiguredPostProcessor {
 
 #[async_trait]
 impl PromptRewriter for ConfiguredPostProcessor {
-    async fn rewrite(&self, transcript: &str) -> Result<String, LlmError> {
+    async fn rewrite(&self, transcript: &str, instruction: &str) -> Result<String, LlmError> {
         let settings = self
             .settings
             .get()
@@ -163,6 +168,6 @@ impl PromptRewriter for ConfiguredPostProcessor {
             model_id: settings.post_processing.model_id,
             api_key,
         })?;
-        provider.rewrite(transcript).await
+        provider.process(transcript, instruction).await
     }
 }
