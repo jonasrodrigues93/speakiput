@@ -375,9 +375,11 @@ const fn default_noise_gate_threshold() -> u32 {
 const fn default_speech_confirmation_ms() -> u64 {
     180
 }
+#[allow(clippy::trivially_copy_pass_by_ref)]
 const fn is_default_noise_gate_threshold(value: &u32) -> bool {
     *value == 3
 }
+#[allow(clippy::trivially_copy_pass_by_ref)]
 const fn is_default_speech_confirmation_ms(value: &u64) -> bool {
     *value == 180
 }

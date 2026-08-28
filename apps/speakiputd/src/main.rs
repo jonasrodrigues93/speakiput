@@ -23,6 +23,7 @@ use tracing::{info, warn};
 #[cfg(feature = "native")]
 mod native;
 
+#[allow(clippy::too_many_lines)]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args_os().any(|argument| argument == "--toggle-recording") {
