@@ -9,6 +9,7 @@ repository.workspace = true
 default = []
 local-whisper = ["dep:whisper-rs"]
 vulkan = ["local-whisper", "whisper-rs/vulkan"]
+metal = ["local-whisper", "whisper-rs/metal"]
 cuda = ["local-whisper", "whisper-rs/cuda"]
 
 [dependencies]

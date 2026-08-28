@@ -109,13 +109,13 @@ mod cpal_impl {
     };
 
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-    use cpal::{SampleRate, StreamConfig};
+    use cpal::{FromSample, Sample, SampleFormat, SizedSample, StreamConfig};
 
     use super::{
         Arc, AudioCaptureError, AudioChunk, AudioDeviceInfo, AudioSource, CaptureController,
         CaptureSession, async_trait, compressed_audio_level, mpsc,
     };
-    use crate::{CHANNELS, SAMPLE_RATE};
+    use crate::SAMPLE_RATE;
 
     #[derive(Debug, Default)]
     pub struct CpalAudioSource;
@@ -223,22 +223,26 @@ mod cpal_impl {
                 .find(|device| device.name().ok().as_deref() == Some(device_id))
                 .ok_or_else(|| AudioCaptureError::DeviceNotFound(device_id.to_owned()))?
         };
-        let config = StreamConfig {
-            channels: CHANNELS,
-            sample_rate: SampleRate(SAMPLE_RATE),
-            buffer_size: cpal::BufferSize::Default,
-        };
-        let stream = device
-            .build_input_stream(
-                &config,
-                move |data: &[i16], _| {
-                    let _ = level_tx.send(compressed_audio_level(data));
-                    let _ = audio_tx.send(data.to_vec());
-                },
-                |_error| {},
-                None,
-            )
+        let supported = device
+            .default_input_config()
             .map_err(|error| AudioCaptureError::Capture(error.to_string()))?;
+        let config: StreamConfig = supported.config();
+        let sample_rate = config.sample_rate.0;
+        let channels = config.channels;
+        let stream = match supported.sample_format() {
+            SampleFormat::F32 => {
+                build_stream::<f32>(&device, &config, channels, sample_rate, audio_tx, level_tx)
+            }
+            SampleFormat::I16 => {
+                build_stream::<i16>(&device, &config, channels, sample_rate, audio_tx, level_tx)
+            }
+            SampleFormat::U16 => {
+                build_stream::<u16>(&device, &config, channels, sample_rate, audio_tx, level_tx)
+            }
+            format => Err(AudioCaptureError::Capture(format!(
+                "unsupported input sample format: {format}"
+            ))),
+        }?;
         stream
             .play()
             .map_err(|error| AudioCaptureError::Capture(error.to_string()))?;
@@ -248,6 +252,92 @@ mod cpal_impl {
         }
         drop(stream);
         Ok(())
+    }
+
+    fn build_stream<T>(
+        device: &cpal::Device,
+        config: &StreamConfig,
+        channels: u16,
+        sample_rate: u32,
+        audio_tx: mpsc::UnboundedSender<AudioChunk>,
+        level_tx: mpsc::UnboundedSender<f32>,
+    ) -> Result<cpal::Stream, AudioCaptureError>
+    where
+        T: SizedSample,
+        f32: FromSample<T>,
+    {
+        device
+            .build_input_stream(
+                config,
+                move |data: &[T], _| {
+                    let samples = convert_samples(data, channels, sample_rate);
+                    let _ = level_tx.send(compressed_audio_level(&samples));
+                    let _ = audio_tx.send(samples);
+                },
+                |_error| {},
+                None,
+            )
+            .map_err(|error| AudioCaptureError::Capture(error.to_string()))
+    }
+
+    fn convert_samples<T>(data: &[T], channels: u16, sample_rate: u32) -> AudioChunk
+    where
+        T: Sample,
+        f32: FromSample<T>,
+    {
+        let channels = usize::from(channels.max(1));
+        let mono = data
+            .chunks_exact(channels)
+            .map(|frame| {
+                let sum = frame
+                    .iter()
+                    .map(|sample| f32::from_sample(*sample))
+                    .sum::<f32>();
+                sum / channels as f32
+            })
+            .collect::<Vec<_>>();
+        if sample_rate == SAMPLE_RATE {
+            return mono.into_iter().map(sample_to_i16).collect();
+        }
+        if mono.is_empty() {
+            return Vec::new();
+        }
+        let output_len = mono.len().saturating_mul(SAMPLE_RATE as usize) / sample_rate as usize;
+        (0..output_len)
+            .map(|index| {
+                let source_index =
+                    index.saturating_mul(sample_rate as usize) / SAMPLE_RATE as usize;
+                sample_to_i16(mono[source_index.min(mono.len() - 1)])
+            })
+            .collect()
+    }
+
+    fn sample_to_i16(sample: f32) -> i16 {
+        (sample.clamp(-1.0, 1.0) * f32::from(i16::MAX)) as i16
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn converts_stereo_48khz_input_to_mono_16khz() {
+            let input = (0..480_u32)
+                .flat_map(|index| {
+                    let sample = if index % 2 == 0 { 0.5 } else { -0.5 };
+                    [sample, sample]
+                })
+                .collect::<Vec<_>>();
+            let output = convert_samples(&input, 2, 48_000);
+            assert_eq!(output.len(), 160);
+            assert_eq!(output[0], 16_383);
+        }
+
+        #[test]
+        fn converts_unsigned_input_around_zero() {
+            let output = convert_samples(&[u16::MIN, u16::MAX / 2, u16::MAX], 1, SAMPLE_RATE);
+            assert_eq!(output, vec![-32_767, 0, 32_766]);
+        }
     }
 }
 

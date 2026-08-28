@@ -12,6 +12,8 @@ members = [
     "crates/speakiput-platform",
     "crates/speakiput-platform-linux",
     "crates/speakiput-platform-linux-gui",
+    "crates/speakiput-platform-macos",
+    "crates/speakiput-platform-macos-gui",
     "crates/speakiput-storage",
     "crates/speakiput-testing",
 ]
@@ -27,12 +29,16 @@ async-trait = "0.1.92"
 ashpd = { version = "0.13.13", default-features = false, features = ["global_shortcuts", "tokio"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 cpal = "0.15.3"
+arboard = { version = "3.6.1", default-features = false }
+enigo = { version = "0.6.1", default-features = false, features = ["platform_specific"] }
 futures-util = "0.3.34"
 hound = "3.5.1"
 jsonschema = "0.49.9"
 keyring = { version = "3.6.3", features = ["async-secret-service", "tokio", "crypto-rust"] }
+macos-accessibility-client = "0.0.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
 regex = "1.12.3"
+rdev = { version = "0.5.3", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0"
 slint = { version = "1.17.1", features = ["unstable-winit-030"] }

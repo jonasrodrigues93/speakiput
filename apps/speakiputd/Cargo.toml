@@ -9,6 +9,7 @@ repository.workspace = true
 default = []
 native = ["speakiput-audio/native-capture", "speakiput-asr/local-whisper"]
 vulkan = ["native", "speakiput-asr/vulkan"]
+metal = ["native", "speakiput-asr/metal"]
 
 [dependencies]
 async-trait.workspace = true
@@ -22,7 +23,6 @@ speakiput-contract = { path = "../../crates/speakiput-contract" }
 speakiput-core = { path = "../../crates/speakiput-core" }
 speakiput-llm = { path = "../../crates/speakiput-llm" }
 speakiput-platform = { path = "../../crates/speakiput-platform" }
-speakiput-platform-linux = { path = "../../crates/speakiput-platform-linux" }
 speakiput-storage = { path = "../../crates/speakiput-storage" }
 thiserror.workspace = true
 tokio.workspace = true
@@ -36,6 +36,12 @@ tempfile.workspace = true
 
 [lints]
 workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+speakiput-platform-linux = { path = "../../crates/speakiput-platform-linux" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+speakiput-platform-macos = { path = "../../crates/speakiput-platform-macos" }
 
 [[bench]]
 name = "pipeline_benchmark"

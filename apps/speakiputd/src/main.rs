@@ -6,7 +6,10 @@ use speakiput_contract::{
     RecordingStartRequest, RecordingStopRequest, SettingsResponse, StateSnapshot,
 };
 use speakiput_platform::{CapabilityReporter, ShortcutService};
+#[cfg(target_os = "linux")]
 use speakiput_platform_linux::{LinuxPlatform, LinuxShortcutService};
+#[cfg(target_os = "macos")]
+use speakiput_platform_macos::{MacPlatform, MacShortcutService};
 use speakiput_storage::{
     JsonSettingsRepository, JsonlHistoryRepository, SettingsRepository, SystemCredentialRepository,
 };
@@ -37,7 +40,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings_repository = Arc::new(JsonSettingsRepository::new(settings_path));
     let history_repository = Arc::new(JsonlHistoryRepository::new(history_path));
     let credential_repository = Arc::new(SystemCredentialRepository);
+    #[cfg(target_os = "linux")]
     let platform = Arc::new(LinuxPlatform);
+    #[cfg(target_os = "macos")]
+    let platform = Arc::new(MacPlatform);
     let platform_capabilities = platform.capabilities();
     let mut capabilities = vec![
         "history".into(),
@@ -76,6 +82,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         capabilities.push("vulkan_acceleration".into());
         info!("local Whisper GPU acceleration enabled backend=vulkan");
     }
+    #[cfg(feature = "metal")]
+    {
+        capabilities.push("metal_acceleration".into());
+        info!("local Whisper GPU acceleration enabled backend=metal");
+    }
 
     let service = SpeakiputService::new(
         settings_repository.clone(),
@@ -110,10 +121,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             focus: platform.clone(),
             output: platform,
         });
-        return run(service, settings_repository).await;
+        #[cfg(target_os = "linux")]
+        let shortcut = Arc::new(LinuxShortcutService::default());
+        #[cfg(target_os = "macos")]
+        let shortcut = Arc::new(MacShortcutService::default());
+        return run(service, settings_repository, shortcut).await;
     }
     #[cfg(not(feature = "native"))]
-    return run(service, settings_repository).await;
+    {
+        #[cfg(target_os = "linux")]
+        let shortcut = Arc::new(LinuxShortcutService::default());
+        #[cfg(target_os = "macos")]
+        let shortcut = Arc::new(MacShortcutService::default());
+        return run(service, settings_repository, shortcut).await;
+    }
 }
 
 async fn toggle_recording() -> Result<(), Box<dyn std::error::Error>> {
@@ -172,14 +193,10 @@ async fn toggle_recording() -> Result<(), Box<dyn std::error::Error>> {
 async fn run(
     service: SpeakiputService,
     settings: Arc<dyn SettingsRepository>,
+    shortcut: Arc<impl ShortcutService + 'static>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let service = Arc::new(service);
-    let shortcut_service = Arc::new(LinuxShortcutService::default());
-    let shortcut_task = tokio::spawn(run_shortcut_loop(
-        Arc::clone(&service),
-        settings,
-        shortcut_service,
-    ));
+    let shortcut_task = tokio::spawn(run_shortcut_loop(Arc::clone(&service), settings, shortcut));
     let backend_service: Arc<dyn BackendService> = service;
     let socket = default_socket_path();
     info!(path = %socket.display(), "speakiputd listening");
@@ -194,7 +211,7 @@ async fn run(
 async fn run_shortcut_loop(
     service: Arc<SpeakiputService>,
     settings: Arc<dyn SettingsRepository>,
-    shortcut: Arc<LinuxShortcutService>,
+    shortcut: Arc<impl ShortcutService + 'static>,
 ) {
     let mut events = service.subscribe().expect("service event channel");
     loop {

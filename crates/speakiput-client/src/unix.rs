@@ -95,14 +95,25 @@ impl UnixBackendClient {
 
 #[must_use]
 pub fn default_socket_path() -> PathBuf {
-    if let Some(runtime_dir) = std::env::var_os("XDG_RUNTIME_DIR") {
-        return PathBuf::from(runtime_dir).join("speakiput/speakiputd.sock");
+    #[cfg(target_os = "macos")]
+    {
+        let cache_dir = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .map(|home| home.join("Library/Caches"))
+            .unwrap_or_else(std::env::temp_dir);
+        return cache_dir.join("speakiput/speakiputd.sock");
     }
-    let cache_dir = std::env::var_os("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
-        .unwrap_or_else(std::env::temp_dir);
-    cache_dir.join("speakiput/runtime/speakiputd.sock")
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Some(runtime_dir) = std::env::var_os("XDG_RUNTIME_DIR") {
+            return PathBuf::from(runtime_dir).join("speakiput/speakiputd.sock");
+        }
+        let cache_dir = std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
+            .unwrap_or_else(std::env::temp_dir);
+        cache_dir.join("speakiput/runtime/speakiputd.sock")
+    }
 }
 
 #[async_trait]

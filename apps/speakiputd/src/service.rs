@@ -661,6 +661,7 @@ impl BackendService for SpeakiputService {
                     ("global_shortcut", "global_shortcut"),
                     ("focus_safe_overlay", "focus_safe_overlay"),
                     ("vulkan_acceleration", "vulkan_acceleration"),
+                    ("metal_acceleration", "metal_acceleration"),
                     ("credential_store", "credential_store"),
                 ] {
                     let available = self.capabilities.iter().any(|item| item == capability);

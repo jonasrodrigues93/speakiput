@@ -1,6 +1,6 @@
 # speakiput
 
-Native desktop dictation for Linux, implemented in Rust with a Slint GUI and
+Native desktop dictation for Linux and macOS, implemented in Rust with a Slint GUI and
 an independently managed background service.
 
 ## Build and run
@@ -52,6 +52,13 @@ For an installation limited to the current user, without `sudo`:
 packaging/linux/install-user.sh
 systemctl --user enable --now speakiputd.service
 ```
+
+## macOS
+
+macOS build prerequisites, permissions and the no-hardware validation strategy
+are documented in [docs/MACOS.md](docs/MACOS.md). macOS uses CoreAudio, the
+Accessibility API and the user Keychain; no Linux packages or `XDG_*` paths are
+required.
 
 ## Benchmarks
 

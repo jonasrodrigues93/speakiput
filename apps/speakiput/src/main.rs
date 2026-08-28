@@ -30,17 +30,29 @@ const APP_ID: &str = "io.github.jonas.speakiput";
 fn main() -> Result<(), slint::PlatformError> {
     let start_hidden = std::env::args_os().any(|argument| argument == "--background");
     let window_icon = application_icon();
+    #[cfg(target_os = "linux")]
     speakiput_platform_linux_gui::configure_backend(
         slint::BackendSelector::new(),
         window_icon,
         APP_ID,
     )
     .select()?;
+    #[cfg(target_os = "macos")]
+    speakiput_platform_macos_gui::configure_backend(
+        slint::BackendSelector::new(),
+        window_icon,
+        APP_ID,
+    )
+    .select()?;
+    #[cfg(target_os = "linux")]
     slint::set_xdg_app_id(APP_ID)?;
     // Slint may realize every top-level window when the event loop starts.
     // Construct the overlay first so the Linux backend can identify its native
     // window before either top-level is created.
+    #[cfg(target_os = "linux")]
     speakiput_platform_linux_gui::prepare_overlay_creation();
+    #[cfg(target_os = "macos")]
+    speakiput_platform_macos_gui::prepare_overlay_creation();
     let overlay = RecordingOverlay::new()?;
     let settings = SettingsWindow::new()?;
     let tray = AppTray::new()?;
