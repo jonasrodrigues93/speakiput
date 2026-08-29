@@ -53,6 +53,9 @@ packaging/linux/install-user.sh
 systemctl --user enable --now speakiputd.service
 ```
 
+The backend is enabled on `graphical-session.target`, not `default.target`, so
+it starts only after the desktop display is available and cannot hold up boot.
+
 ## macOS
 
 macOS build prerequisites, permissions and the no-hardware validation strategy

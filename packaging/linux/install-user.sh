@@ -16,6 +16,14 @@ install -Dm644 packaging/linux/autostart/speakiput.desktop \
 install -Dm644 apps/speakiput/assets/tray-icon.svg \
     "$HOME/.local/share/icons/hicolor/scalable/apps/io.github.jonas.speakiput.svg"
 
+# Refresh an existing user service and move old enablement from default.target
+# to graphical-session.target. A fresh installation remains opt-in below.
+if systemctl --user daemon-reload 2>/dev/null; then
+    if systemctl --user is-enabled --quiet speakiputd.service 2>/dev/null; then
+        systemctl --user reenable speakiputd.service
+    fi
+fi
+
 # Desktop-session PATHs do not consistently include ~/.local/bin. Keep a
 # user-only installation self-contained instead of accidentally launching a
 # second system-wide copy from /usr/bin.
