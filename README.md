@@ -86,13 +86,21 @@ This repository intentionally starts from the proven behavior of
 [`whisrs`](https://github.com/y0sif/whisrs) instead of rebuilding the audio and
 transcription pipeline from scratch.
 
-Planning artifacts:
+## Documentation
 
-- [Implementation plan](IMPLEMENTATION_PLAN.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [Prompt processing specification](docs/PROMPT_PROCESSING_SPEC.md)
+- [macOS build and permissions](docs/MACOS.md)
 - [whisrs reuse map](docs/WHISRS_REFERENCE.md)
 - [GUI/backend contract](contracts/v1/README.md)
+- [Third-party licenses](THIRD_PARTY_LICENSES.md)
 
-The implementation follows the phase boundaries and definition of done in the
-implementation plan.
+## Cargo metadata and repository URL
+
+The canonical repository is
+<https://github.com/jonasrodrigues93/speakiput>. All workspace packages inherit
+`version`, `license` and `repository` from the root `Cargo.toml`. The systemd
+service documentation links use the same URL.
+
+The Cargo `repository` value is package metadata used by Cargo and package
+indexes. It does not configure the Git remote, which remains a local checkout
+setting.

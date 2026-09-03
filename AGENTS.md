@@ -6,7 +6,6 @@ Before implementing audio capture, WAV encoding, silence handling,
 transcription, LLM cleanup, history, text injection or daemon lifecycle, inspect
 the existing whisrs implementation instead of starting from zero:
 
-- local checkout: `/home/jonas/Projects/opensource/whisrs`
 - upstream: `https://github.com/y0sif/whisrs`
 - initially reviewed commit: `28139bd8c4ff17e8d0fd156a0d903a7baa423d48`
 - detailed reuse map: `docs/WHISRS_REFERENCE.md`
@@ -31,5 +30,5 @@ Port behavior and tests before refactoring.
 
 ## Implementation order
 
-Follow `IMPLEMENTATION_PLAN.md`. Establish the executable contract and
-in-memory fake before implementing GUI or backend production behavior.
+Establish the executable contract and in-memory fake before implementing GUI or
+backend production behavior.

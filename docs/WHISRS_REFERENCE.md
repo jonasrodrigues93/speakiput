@@ -3,8 +3,6 @@
 ## Pinned reference
 
 - Repository: <https://github.com/y0sif/whisrs>
-- Local reference during initial planning:
-  `/home/jonas/Projects/opensource/whisrs`
 - Reviewed commit: `28139bd8c4ff17e8d0fd156a0d903a7baa423d48`
 - License: MIT. Preserve the whisrs copyright/license notice in copied or
   substantially derived files and record their origin in commit messages.
